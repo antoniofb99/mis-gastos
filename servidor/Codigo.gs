@@ -223,6 +223,22 @@ function guardarCuenta(c) {
 
 /* --------------------------------------------------------- avisos del banco */
 
+// Para ejecutar UNA vez a mano desde el editor: Google pide entonces los permisos que faltan
+// (leer Gmail y ejecutarse sola) y, ya con ellos, hace la primera lectura de avisos.
+function autorizar() {
+  asegurarDisparador();
+  Gmail.Users.getProfile('me');
+  const candado = LockService.getScriptLock();
+  try {
+    candado.waitLock(20000);
+    const resultado = sincronizarCorreo();
+    console.log('Avisos leídos: ' + JSON.stringify(resultado));
+    return resultado;
+  } finally {
+    try { candado.releaseLock(); } catch (err) { /* no lo teníamos */ }
+  }
+}
+
 // Se ejecuta sola cada pocos minutos (disparador) y también cada vez que la app pide los datos.
 function tareaCorreo() {
   const candado = LockService.getScriptLock();
