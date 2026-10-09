@@ -153,6 +153,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .mov:hover .m-n{color:var(--accent)}
 .mov .m-n{font-weight:600;overflow-wrap:anywhere}
 .mov .m-i{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15px}
+.mov .m-i.mas{color:var(--ok)}
 .mov .m-s{grid-column:1/-1;font-size:13px;color:var(--muted)}
 .vacio{background:var(--paper);border-radius:10px;padding:22px 18px;text-align:center;color:var(--muted)}
 .vacio strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
@@ -290,12 +291,12 @@ dialog.hoja::backdrop{background:var(--shade)}
       <label for="f-comercio">Comercio o concepto</label>
       <input class="texto" id="f-comercio" name="comercio" autocomplete="off" maxlength="80" placeholder="Por ejemplo, Mercadona">
     </div>
-    <fieldset class="grupo">
+    <fieldset class="grupo" id="f-cat-grupo">
       <legend>Categoría</legend>
       <div class="opciones" id="f-categorias"></div>
     </fieldset>
     <fieldset class="grupo" id="f-cuenta-grupo" hidden>
-      <legend>Cuenta de la que sale</legend>
+      <legend id="f-cuenta-leyenda">Cuenta de la que sale</legend>
       <div class="opciones" id="f-cuentas"></div>
     </fieldset>
     <div class="grupo">
@@ -330,6 +331,11 @@ dialog.hoja::backdrop{background:var(--shade)}
       <input class="texto" id="c-tarjetas" name="tarjetas" autocomplete="off" placeholder="Por ejemplo, Santander, Visa Débito">
       <p class="nota">El nombre, o parte del nombre, con que aparece cada tarjeta en Cartera, separados por comas. Los pagos con esas tarjetas se restan de esta cuenta.</p>
     </div>
+    <div class="grupo">
+      <label for="c-fin">Últimas 4 cifras de la cuenta (opcional)</label>
+      <input class="texto" id="c-fin" name="fin" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="Por ejemplo, 0061">
+      <p class="nota">Si tu banco te avisa por correo del dinero disponible, con esto la app sabe a qué cuenta se refiere y pone el saldo al día sola.</p>
+    </div>
     <p class="error" id="c-error" role="alert"></p>
     <div class="acciones">
       <button class="btn primario" type="submit" id="c-guardar">Guardar cuenta</button>
@@ -363,7 +369,7 @@ dialog.hoja::backdrop{background:var(--shade)}
   var $ = function (s) { return document.querySelector(s); };
   var S = {
     mes: claveMes(new Date()), tab: 'cuentas', filtro: '',
-    todos: [], gastos: [], presupuestos: [], cuentas: [], listoG: false, listoP: false, listoC: false,
+    todos: [], movs: [], gastos: [], presupuestos: [], cuentas: [], listoG: false, listoP: false, listoC: false,
     db: null, sinDatos: false, error: '', editando: null, editCuenta: null, ocupado: false
   };
 
@@ -443,14 +449,28 @@ dialog.hoja::backdrop{background:var(--shade)}
       lista.find(function (c) { return (c.tarjetas || []).some(function (a) { a = norm(a); return a && t.indexOf(a) > -1; }); }) || null;
   }
   /* Saldo de hoy = saldo anotado menos los pagos de esa cuenta posteriores a la anotación. */
+  function tipoDe(g) { return g.tipo === 'ingreso' || g.tipo === 'traspaso' ? g.tipo : 'gasto'; }
+  function sinIdentificar(g) { return g.origen === 'Banco' && g.comercio === 'Sin identificar'; }
   function saldoDe(c) {
-    var desde = sello(c.fechaSaldo), gastado = 0, n = 0;
+    var desde = sello(c.fechaSaldo), neto = 0, n = 0;
     S.todos.forEach(function (g) {
-      if (sello(g.fecha) > desde) { var cu = cuentaDe(g); if (cu && cu.id === c.id) { gastado += Number(g.importe) || 0; n++; } }
+      if (!(sello(g.fecha) > desde)) return;
+      var imp = Number(g.importe) || 0, t = tipoDe(g);
+      if (t === 'traspaso') {
+        if (g.cuenta === c.id) { neto -= imp; n++; }
+        if (g.destino === c.id) { neto += imp; n++; }
+        return;
+      }
+      var cu = cuentaDe(g);
+      if (cu && cu.id === c.id) { neto += t === 'ingreso' ? imp : -imp; n++; }
     });
-    return { saldo: (Number(c.saldo) || 0) - gastado, gastado: gastado, n: n };
+    return { saldo: (Number(c.saldo) || 0) + neto, neto: neto, n: n };
   }
-  function fechaCorta(f) { var d = new Date(f); return isNaN(d) ? '' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }); }
+  function conSigno(n) { return (n < 0 ? '−' : '+') + eur(Math.abs(n)); }
+  function fechaHora(f) {
+    var d = new Date(f);
+    return isNaN(d) ? '' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  }
 
   /* Por dónde va el mes: fracción transcurrida y día de hoy. */
   function ritmo(m) {
@@ -471,7 +491,9 @@ dialog.hoja::backdrop{background:var(--shade)}
   /* ---------- datos derivados ---------- */
   function calcular() {
     var r = ritmo(S.mes);
-    var gastos = S.gastos.slice().sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+    var movs = S.movs.slice().sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+    var gastos = movs.filter(function (g) { return tipoDe(g) === 'gasto'; });
+    var ingresos = movs.reduce(function (s, g) { return s + (tipoDe(g) === 'ingreso' ? Number(g.importe) || 0 : 0); }, 0);
     var porCat = {}, total = 0;
     gastos.forEach(function (g) {
       var c = g.categoria || 'Otros', imp = Number(g.importe) || 0;
@@ -487,7 +509,7 @@ dialog.hoja::backdrop{background:var(--shade)}
       if (!vistos[c]) { vistos[c] = true; cats.push({ id: slug(c), nombre: c, limite: 0, gastado: porCat[c], existe: false }); }
     });
     var limiteTotal = cats.reduce(function (s, c) { return s + c.limite; }, 0);
-    return { r: r, gastos: gastos, cats: cats, total: total, limiteTotal: limiteTotal };
+    return { r: r, movs: movs, gastos: gastos, ingresos: ingresos, cats: cats, total: total, limiteTotal: limiteTotal };
   }
   function nombresCategoria() {
     var vistos = {}, out = [];
@@ -511,14 +533,19 @@ dialog.hoja::backdrop{background:var(--shade)}
   function linea(l, v, fuerte) {
     return '<div class="linea' + (fuerte ? ' fuerte' : '') + '"><span class="l">' + esc(l) + '</span><i></i><span class="v">' + esc(v) + '</span></div>';
   }
-  function filaMov(g) {
-    var sub = [g.categoria || 'Otros'];
-    var cu = cuentaDe(g);
-    if (cu) sub.push(cu.nombre); else if (g.tarjeta) sub.push(g.tarjeta);
-    sub.push(g.origen || 'A mano');
+  function filaMov(g, conFecha) {
+    var t = tipoDe(g), cu = cuentaDe(g), sub = [];
+    if (t === 'gasto') sub.push(g.categoria || 'Otros');
+    else if (t === 'ingreso') sub.push('Ingreso');
+    else sub.push('Entre cuentas');
+    if (t === 'traspaso') {
+      var a = S.cuentas.find(function (c) { return c.id === g.cuenta; }), b = S.cuentas.find(function (c) { return c.id === g.destino; });
+      sub.push((a ? a.nombre : '?') + ' → ' + (b ? b.nombre : '?'));
+    } else if (cu) sub.push(cu.nombre); else if (g.tarjeta) sub.push(g.tarjeta);
+    sub.push(conFecha === true ? fechaHora(g.fecha) : (g.origen || 'A mano'));
     return '<button class="mov" type="button" data-gasto="' + esc(g.id) + '">' +
       '<span class="m-n">' + esc(g.comercio || 'Sin nombre') + '</span>' +
-      '<span class="m-i">' + esc(eur(g.importe)) + '</span>' +
+      '<span class="m-i' + (t === 'ingreso' ? ' mas' : '') + '">' + esc((t === 'ingreso' ? '+' : '') + eur(g.importe)) + '</span>' +
       '<span class="m-s">' + esc(sub.join(' · ')) + '</span></button>';
   }
   function tituloDia(clave) {
@@ -581,7 +608,8 @@ dialog.hoja::backdrop{background:var(--shade)}
     }
     h += '<div class="lineas">';
     h += linea('Presupuesto del mes', D.limiteTotal > 0 ? eur(D.limiteTotal) : 'Sin definir');
-    h += linea(D.gastos.length + (D.gastos.length === 1 ? ' movimiento' : ' movimientos'), eur(D.total));
+    h += linea(D.gastos.length + (D.gastos.length === 1 ? ' gasto' : ' gastos'), eur(D.total));
+    if (D.ingresos > 0) h += linea('Ingresos del mes', '+' + eur(D.ingresos));
     if (D.limiteTotal > 0) {
       h += linea(queda >= 0 ? 'Te queda' : 'Te has pasado', eur(Math.abs(queda)), true);
       if (r.estado === 'actual' && queda > 0) h += linea('Por día hasta el ' + r.n, eur(queda / (r.n - r.dia + 1)));
@@ -607,11 +635,11 @@ dialog.hoja::backdrop{background:var(--shade)}
     });
     h += '</div></section>';
 
-    h += '<section class="sec"><header><h2>Últimos movimientos</h2>' + (D.gastos.length > 5 ? '<button class="enlace" type="button" data-ir="movimientos">Ver los ' + D.gastos.length + '</button>' : '') + '</header>';
-    if (!D.gastos.length) {
-      h += '<div class="vacio"><strong>Sin gastos en ' + esc(nombreMes(S.mes)) + '</strong>Añade uno con el botón de abajo. Los pagos con Apple Pay aparecen aquí solos.</div>';
+    h += '<section class="sec"><header><h2>Últimos movimientos</h2>' + (D.movs.length > 5 ? '<button class="enlace" type="button" data-ir="movimientos">Ver los ' + D.movs.length + '</button>' : '') + '</header>';
+    if (!D.movs.length) {
+      h += '<div class="vacio"><strong>Sin movimientos en ' + esc(nombreMes(S.mes)) + '</strong>Añade uno con el botón de abajo. Los pagos con Apple Pay aparecen aquí solos.</div>';
     } else {
-      h += '<div class="movs">' + D.gastos.slice(0, 5).map(filaMov).join('') + '</div>';
+      h += '<div class="movs">' + D.movs.slice(0, 5).map(filaMov).join('') + '</div>';
     }
     h += '</section>';
     el.innerHTML = h;
@@ -623,20 +651,21 @@ dialog.hoja::backdrop{background:var(--shade)}
     if (!S.listoG) { el.innerHTML = vistaCargando('Cargando movimientos…'); return; }
     var cats = nombresCategoria();
     if (S.filtro && cats.indexOf(S.filtro) < 0) S.filtro = '';
-    var lista = S.filtro ? D.gastos.filter(function (g) { return (g.categoria || 'Otros') === S.filtro; }) : D.gastos;
-    var suma = lista.reduce(function (s, g) { return s + (Number(g.importe) || 0); }, 0);
+    var lista = S.filtro ? D.gastos.filter(function (g) { return (g.categoria || 'Otros') === S.filtro; }) : D.movs;
+    var gastado = function (g) { return tipoDe(g) === 'gasto' ? Number(g.importe) || 0 : 0; };   // las sumas son de lo gastado
+    var suma = lista.reduce(function (s, g) { return s + gastado(g); }, 0);
     var h = '<section class="sec"><header><h2>Movimientos</h2><span class="num">' + esc(eur(suma)) + '</span></header>';
     h += '<div class="filtros" role="group" aria-label="Filtrar por categoría">' +
       '<button class="chip" type="button" data-filtro="" aria-pressed="' + (!S.filtro) + '">Todas</button>' +
       cats.map(function (c) { return '<button class="chip" type="button" data-filtro="' + esc(c) + '" aria-pressed="' + (S.filtro === c) + '">' + esc(c) + '</button>'; }).join('') + '</div>';
     if (!lista.length) {
-      h += '<div class="vacio"><strong>Nada que mostrar</strong>' + (S.filtro ? 'No hay gastos de ' + esc(S.filtro) + ' en ' + esc(nombreMes(S.mes)) + '.' : 'No hay gastos en ' + esc(nombreMes(S.mes)) + '.') + '</div>';
+      h += '<div class="vacio"><strong>Nada que mostrar</strong>' + (S.filtro ? 'No hay gastos de ' + esc(S.filtro) + ' en ' + esc(nombreMes(S.mes)) + '.' : 'No hay movimientos en ' + esc(nombreMes(S.mes)) + '.') + '</div>';
     } else {
       var grupos = [], ult = null;
       lista.forEach(function (g) {
         var k = String(g.fecha).slice(0, 10);
         if (!ult || ult.k !== k) { ult = { k: k, items: [], suma: 0 }; grupos.push(ult); }
-        ult.items.push(g); ult.suma += Number(g.importe) || 0;
+        ult.items.push(g); ult.suma += gastado(g);
       });
       grupos.forEach(function (gr) {
         h += '<div><div class="dia"><span>' + esc(tituloDia(gr.k)) + '</span><span class="num">' + esc(eur(gr.suma)) + '</span></div>' +
@@ -698,11 +727,19 @@ dialog.hoja::backdrop{background:var(--shade)}
         var c = f.c, s = f.s, ok = tieneSaldo(c);
         h += '<div class="cuenta"><div class="fila"><span class="nombre">' + esc(c.nombre) + '</span>' +
           (ok ? '<span class="saldo' + (s.saldo < 0 ? ' neg' : '') + '">' + esc(eur(s.saldo)) + '</span>' : '<span class="pill none">Sin saldo</span>') + '</div>';
-        if (ok) h += '<div class="det">' + (s.n ? 'Restados ' + esc(eur(s.gastado)) + ' en ' + s.n + (s.n === 1 ? ' pago' : ' pagos') + ' desde el ' : 'Sin pagos desde el ') + esc(fechaCorta(c.fechaSaldo)) + '</div>';
-        h += '<div class="det">' + ((c.tarjetas || []).length ? 'Tarjetas: ' + esc(c.tarjetas.join(', ')) : 'Sin tarjetas asociadas') + '</div>';
+        if (ok) h += '<div class="det">' + (c.terminaEn ? 'Saldo según tu banco. ' : '') +
+          esc(s.n ? s.n + (s.n === 1 ? ' movimiento' : ' movimientos') + ' desde el ' + fechaHora(c.fechaSaldo) + ': ' + conSigno(s.neto) : 'Sin movimientos desde el ' + fechaHora(c.fechaSaldo)) + '</div>';
+        h += '<div class="det">' + ((c.tarjetas || []).length ? 'Tarjetas: ' + esc(c.tarjetas.join(', ')) : 'Sin tarjetas asociadas') +
+          (c.terminaEn ? ' · Cuenta acabada en ' + esc(c.terminaEn) : '') + '</div>';
         h += '<div class="acc"><button class="enlace" type="button" data-cuenta="' + esc(c.id) + '">' + (ok ? 'Actualizar saldo o tarjetas' : 'Poner el saldo de hoy') + '</button></div></div>';
       });
       h += '</div>';
+    }
+    var dudas = S.todos.filter(sinIdentificar).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+    if (dudas.length) {
+      h += '<section class="sec"><header><h2>Sin identificar</h2><span class="num">' + dudas.length + '</span></header>' +
+        '<p class="nota">Tu banco ha avisado de estos movimientos sin decir qué son. Toca cada uno para ponerle nombre y categoría.</p>' +
+        '<div class="movs">' + dudas.slice(0, 10).map(function (g) { return filaMov(g, true); }).join('') + '</div></section>';
     }
     var pend = {}, orden = [];
     if (cuentas.length) S.todos.forEach(function (g) {
@@ -727,7 +764,8 @@ dialog.hoja::backdrop{background:var(--shade)}
   }
 
   function pintar() {
-    S.gastos = S.todos.filter(function (g) { return (g.mes || String(g.fecha).slice(0, 7)) === S.mes; });
+    S.movs = S.todos.filter(function (g) { return (g.mes || String(g.fecha).slice(0, 7)) === S.mes; });
+    S.gastos = S.movs.filter(function (g) { return tipoDe(g) === 'gasto'; });
     var D = calcular();
     var enCuentas = S.tab === 'cuentas';   // el saldo es de hoy: ahí el mes no pinta nada
     $('#mes-txt').textContent = enCuentas ? 'Mis cuentas' : mayus(nombreMes(S.mes));
@@ -760,16 +798,20 @@ dialog.hoja::backdrop{background:var(--shade)}
   /* ---------- hoja de gasto ---------- */
   function abrirHoja(g) {
     S.editando = g || null;
-    $('#hoja-titulo').textContent = g ? 'Editar gasto' : 'Nuevo gasto';
+    var tipo = g ? tipoDe(g) : 'gasto', duda = !!g && sinIdentificar(g);
+    $('#hoja-titulo').textContent = !g ? 'Nuevo gasto' : duda ? '¿Qué fue este movimiento?' : tipo === 'ingreso' ? 'Editar ingreso' : tipo === 'traspaso' ? 'Editar traspaso' : 'Editar gasto';
+    $('#f-cat-grupo').hidden = tipo !== 'gasto';
+    $('#f-cuenta-leyenda').textContent = tipo === 'ingreso' ? 'Cuenta en la que entra' : 'Cuenta de la que sale';
+    $('#f-comercio').placeholder = duda ? (tipo === 'ingreso' ? 'Por ejemplo, Bizum de Sandra' : 'Por ejemplo, Bizum a Juan') : 'Por ejemplo, Mercadona';
     $('#f-guardar').textContent = g ? 'Guardar cambios' : 'Guardar gasto';
     $('#f-eliminar').hidden = !g; $('#f-eliminar').textContent = 'Eliminar'; $('#f-eliminar').dataset.seguro = '';
     $('#f-error').textContent = '';
     $('#f-importe').value = g ? String(g.importe).replace('.', ',') : '';
-    $('#f-comercio').value = g ? (g.comercio || '') : '';
+    $('#f-comercio').value = g && !duda ? (g.comercio || '') : '';
     var hoy = new Date();
     var porDefecto = S.mes === claveMes(hoy) ? claveDia(hoy) : S.mes + '-01';
     $('#f-fecha').value = g ? String(g.fecha).slice(0, 10) : porDefecto;
-    var sel = g ? (g.categoria || 'Otros') : (S.filtro || '');
+    var sel = g ? (duda ? '' : (g.categoria || 'Otros')) : (S.filtro || '');
     $('#f-categorias').innerHTML = nombresCategoria().map(function (c, i) {
       return '<label><input type="radio" name="cat" id="f-cat-' + i + '" value="' + esc(c) + '"' + (c === sel ? ' checked' : '') + '><span>' + esc(c) + '</span></label>';
     }).join('');
@@ -793,14 +835,17 @@ dialog.hoja::backdrop{background:var(--shade)}
     var marcada = document.querySelector('#f-categorias input:checked');
     if (importe === '' || importe === 0) { $('#f-error').textContent = 'Escribe el importe, por ejemplo 12,50.'; $('#f-importe').focus(); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { $('#f-error').textContent = 'Elige la fecha del gasto.'; return; }
-    if (!marcada) { $('#f-error').textContent = 'Elige una categoría.'; return; }
     var previo = S.editando, ahora = new Date();
+    var tipo = previo ? tipoDe(previo) : 'gasto';
+    if (tipo === 'gasto' && !marcada) { $('#f-error').textContent = 'Elige una categoría.'; return; }
+    var porDefecto = tipo === 'gasto' ? marcada.value : tipo === 'ingreso' ? 'Ingreso' : 'Traspaso';
     var hora = previo && String(previo.fecha).slice(0, 10) === fecha ? String(previo.fecha).slice(11) : dos(ahora.getHours()) + ':' + dos(ahora.getMinutes()) + ':' + dos(ahora.getSeconds());
     var cta = document.querySelector('#f-cuentas input:checked');
     var datos = {
       fecha: fecha + 'T' + (hora || '12:00:00'), mes: fecha.slice(0, 7),
       cuenta: cta ? cta.value : (previo ? (previo.cuenta || '') : ''),
-      comercio: comercio || marcada.value, importe: importe, categoria: marcada.value,
+      comercio: comercio || porDefecto, importe: importe, categoria: tipo === 'gasto' ? marcada.value : '',
+      tipo: tipo, destino: previo ? (previo.destino || '') : '',
       tarjeta: previo ? (previo.tarjeta || '') : '', origen: previo ? (previo.origen || 'A mano') : 'A mano'
     };
     if (previo && previo.ejemplo) datos.ejemplo = true;
@@ -885,6 +930,7 @@ dialog.hoja::backdrop{background:var(--shade)}
       ? 'Es el saldo que calcula la app. Si en el banco ves otro, escríbelo aquí y la cuenta se pone al día.'
       : 'Mira el saldo en la app del banco y escríbelo. Desde ese momento se irán restando tus pagos.';
     $('#c-tarjetas').value = c ? (c.tarjetas || []).join(', ') : '';
+    $('#c-fin').value = c ? (c.terminaEn || '') : '';
     $('#c-error').textContent = '';
     $('#c-eliminar').hidden = !c; $('#c-eliminar').textContent = 'Eliminar'; $('#c-eliminar').dataset.seguro = '';
     var d = $('#hoja-cuenta');
@@ -900,13 +946,14 @@ dialog.hoja::backdrop{background:var(--shade)}
       t = t.trim().replace(/\s+/g, ' ');
       if (t && !tarjetas.some(function (x) { return norm(x) === norm(t); })) tarjetas.push(t);
     });
-    var id = c ? c.id : slug(nombre);
+    var id = c ? c.id : slug(nombre), fin = $('#c-fin').value.replace(/\D/g, '');
     if (!nombre || !id) { $('#c-error').textContent = 'Ponle un nombre a la cuenta.'; $('#c-nombre').focus(); return; }
     if (!c && S.cuentas.some(function (x) { return x.id === id; })) { $('#c-error').textContent = 'Ya tienes una cuenta con ese nombre.'; return; }
     var datos = {
       nombre: nombre, tarjetas: tarjetas,
       orden: c ? (c.orden || 0) : S.cuentas.reduce(function (m, x) { return Math.max(m, Number(x.orden) || 0); }, 0) + 1,
-      saldo: c && tieneSaldo(c) ? c.saldo : null, fechaSaldo: c ? (c.fechaSaldo || '') : ''
+      saldo: c && tieneSaldo(c) ? c.saldo : null, fechaSaldo: c ? (c.fechaSaldo || '') : '',
+      terminaEn: fin ? ('0000' + fin).slice(-4) : ''
     };
     var actual = c && tieneSaldo(c) ? Math.round(saldoDe(c).saldo * 100) / 100 : null;
     if (v !== '' && v !== actual) { datos.saldo = v; datos.fechaSaldo = ahoraISO(); }
@@ -973,7 +1020,7 @@ dialog.hoja::backdrop{background:var(--shade)}
   document.querySelector('main').addEventListener('click', function (e) {
     var t = e.target.closest('[data-gasto],[data-ir],[data-filtro],[data-quitar],[data-cuenta],[data-nueva-cuenta]');
     if (!t) return;
-    if (t.dataset.gasto !== undefined) { var g = S.gastos.find(function (x) { return x.id === t.dataset.gasto; }); if (g) abrirHoja(g); }
+    if (t.dataset.gasto !== undefined) { var g = S.todos.find(function (x) { return x.id === t.dataset.gasto; }); if (g) abrirHoja(g); }
     else if (t.dataset.ir) irA(t.dataset.ir);
     else if (t.dataset.filtro !== undefined) { S.filtro = t.dataset.filtro; pintar(); }
     else if (t.dataset.quitar) quitarCategoria(t);

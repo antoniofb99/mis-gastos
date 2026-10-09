@@ -15,6 +15,7 @@ Hoja.prototype = {
     return {
       getValues() { const o = []; for (let i = 0; i < nr; i++) { const r = []; for (let j = 0; j < nc; j++) { const v = (self.f[a-1+i] || [])[c-1+j]; r.push(v == null ? '' : v); } o.push(r); } return o; },
       setValues(vals) { vals.forEach((r, i) => { self.f[a-1+i] = self.f[a-1+i] || []; r.forEach((v, j) => { self.f[a-1+i][c-1+j] = limpia(v); }); }); },
+      getValue() { const v = (self.f[a-1] || [])[c-1]; return v == null ? '' : v; },
       setValue(v) { self.f[a-1] = self.f[a-1] || []; self.f[a-1][c-1] = limpia(v); },
       setNumberFormat() {},
     };
@@ -24,10 +25,20 @@ function limpia(v) { return (typeof v === 'string' && v[0] === "'") ? v.slice(1)
 const p2 = n => String(n).padStart(2, '0');
 global.SpreadsheetApp = { getActiveSpreadsheet: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n)), getSpreadsheetTimeZone: () => 'local' }) };
 global.Utilities = {
+  base64DecodeWebSafe: t => Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64'),
+  newBlob: b => ({ getDataAsString: () => b.toString('utf8') }),
   getUuid: () => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16)),
   formatDate: d => d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()),
   parseDate: s => { const m = s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)/).map(Number); return new Date(m[1], m[2]-1, m[3], m[4], m[5], m[6]); },
 };
+const correos = []; const props = {}; const disparadores = []; let gmailRoto = false;
+const b64 = t => Buffer.from(t, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+global.Gmail = { Users: { Messages: {
+  list: (yo, o) => { if (gmailRoto) throw new Error('Sin permiso para Gmail'); return { messages: correos.filter(c => o.q.indexOf(c.de) > -1).map(c => ({ id: c.id })).reverse() }; },
+  get: (yo, id) => { const c = correos.find(x => x.id === id); return { id, internalDate: String(c.t), snippet: '', payload: { mimeType: 'multipart/alternative', parts: [{ mimeType: 'text/html', body: { data: b64(c.html) } }] } }; },
+} } };
+global.PropertiesService = { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = v; } }) };
+global.ScriptApp = { getProjectTriggers: () => disparadores.map(f => ({ getHandlerFunction: () => f })), newTrigger: f => ({ timeBased() { return this; }, everyMinutes() { return this; }, create() { disparadores.push(f); } }) };
 global.LockService = { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) };
 global.ContentService = { MimeType: { JSON: 'json' }, createTextOutput: t => ({ t, setMimeType() { return this; } }) };
 const src = fs.readFileSync(__dirname + '/../servidor/Codigo.gs', 'utf8').replace("CAMBIA-ESTA-CLAVE", 'k');
@@ -90,6 +101,70 @@ post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'tr', nombre: 'Trade 
 ok(post({ clave: 'k', accion: 'leer' }).cuentas[1].saldo === 0, 'cuentas: saldo 0 no se confunde con vacío');
 post({ clave: 'k', accion: 'cuenta.borrar', id: 'tr' });
 ok(post({ clave: 'k', accion: 'leer' }).cuentas.length === 1, 'cuentas: borrado');
+// tipos de movimiento
+ok(hojas.Gastos.f[0][9] === 'Tipo' && hojas.Gastos.f[0][10] === 'Cuenta destino', 'cabecera con Tipo y Cuenta destino');
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.gastos.every(q => q.tipo === 'gasto' && q.destino === ''), 'las filas antiguas y los pagos son gastos');
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gi1', fecha: '2026-10-09T19:00:00', comercio: 'Nómina', importe: 1500, categoria: 'Ocio', cuenta: 'banco-santander', tipo: 'ingreso', origen: 'Ingreso' } });
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gt1', fecha: '2026-10-09T19:01:00', comercio: 'Ahorro', importe: 200, cuenta: 'banco-santander', tipo: 'traspaso', destino: 'trade-republic', origen: 'Entre cuentas' } });
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gb1', fecha: '2026-10-09T19:02:00', comercio: 'Cena', importe: 20, categoria: 'Restaurantes', cuenta: 'revolut-conjunta', tipo: 'gasto', destino: 'x', origen: 'Bizum' } });
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gr1', fecha: '2026-10-09T19:03:00', comercio: 'Raro', importe: 1, categoria: 'Ocio', cuenta: '', tipo: 'inventado' } });
+t = post({ clave: 'k', accion: 'leer' }); const por = id => t.gastos.find(q => q.id === id);
+ok(por('gi1').tipo === 'ingreso' && por('gi1').categoria === '' && por('gi1').cuenta === 'banco-santander', 'ingreso: se guarda sin categoría');
+ok(por('gt1').tipo === 'traspaso' && por('gt1').destino === 'trade-republic' && por('gt1').categoria === '', 'traspaso: guarda la cuenta destino');
+ok(por('gb1').tipo === 'gasto' && por('gb1').destino === '' && por('gb1').origen === 'Bizum' && por('gb1').categoria === 'Restaurantes', 'bizum: es un gasto con su categoría y sin destino');
+ok(por('gr1').tipo === 'gasto', 'un tipo desconocido se trata como gasto');
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gt1', fecha: '2026-10-09T19:01:00', comercio: 'Ahorro', importe: 250, cuenta: 'banco-santander', tipo: 'ingreso', destino: 'trade-republic' } });
+t = post({ clave: 'k', accion: 'leer' });
+ok(por('gt1').tipo === 'ingreso' && por('gt1').destino === '' && por('gt1').importe === 250, 'cambiar de traspaso a ingreso limpia el destino');
 ok(post({ clave: 'k', accion: 'inventada' }).ok === false, 'acción desconocida');
 ok(JSON.parse(api.doGet().t).ok, 'doGet responde');
+
+// ---------------------------------------------------------------- avisos del banco por correo
+const DE = 'SantanderInforma@emailing.bancosantander-mail.es';
+const hora = (h, m, sg) => new Date(2026, 9, 9, h, m, sg || 0).getTime();
+const aviso = (id, t, importe, fin) => correos.push({ id, de: DE, t, html: '<style>p{color:red}</style><p>Si no visualizas correctamente este email haz click aqu&iacute;</p><p>Antonio, te informamos de que <b>tienes disponible ' + importe + ' EUR en tu cuenta</b> terminada en **' + (fin || '0061') + '.</p>' });
+const realNow = Date.now; let reloj = hora(19, 10); Date.now = () => reloj;
+hojas.Gastos.f = [hojas.Gastos.f[0]]; hojas.Cuentas.f = [hojas.Cuentas.f[0]];
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'banco-santander', nombre: 'Banco Santander', saldo: 144.01, fechaSaldo: '2026-10-09T18:02:22', tarjetas: ['Santander'], orden: 1, terminaEn: '0061' } });
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'revolut', nombre: 'Revolut', saldo: 50, fechaSaldo: '2026-10-09T18:02:46', tarjetas: ['Revolut'], orden: 2 } });
+hojas.Gastos.f.push([new Date(2026, 9, 9, 18, 30, 0), 'Repsol', 10, 'Santander Débito', 'Gasolina', 'Apple Pay', '10,00 €', 'gap1', '', 'gasto', '']);
+aviso('e0', hora(16, 53), '150,00');             // anterior al saldo anotado: no cuenta
+aviso('e1', hora(18, 55), '135,01');             // 144,01 - 10 = 134,01 -> entra 1,00
+correos.push({ id: 'e4', de: DE, t: hora(19, 0), html: '<p>Descubre nuestras ofertas</p>' });
+aviso('e9', hora(19, 1), '999,00', '9999');      // cuenta que no existe
+aviso('e2', hora(19, 2), '133,00');              // salen 2,01
+aviso('e3', hora(19, 9, 30), '133,00');          // demasiado reciente a las 19:10
+t = post({ clave: 'k', accion: 'leer' });
+let cs = t.cuentas.find(q => q.id === 'banco-santander'); const mov = t.gastos.filter(q => q.origen === 'Banco');
+ok(t.correo.ok && t.correo.aplicados === 2 && t.correo.nuevos === 5, 'correo: procesa los avisos pendientes (' + JSON.stringify(t.correo) + ')');
+ok(cs.saldo === 133 && cs.fechaSaldo === '2026-10-09T19:03:00' && cs.terminaEn === '0061', 'correo: la cuenta queda con el saldo del banco (' + cs.saldo + ' @ ' + cs.fechaSaldo + ')');
+ok(mov.length === 2 && mov[0].tipo === 'ingreso' && mov[0].importe === 1 && mov[0].fecha === '2026-10-09T18:55:00' && mov[0].cuenta === 'banco-santander' && mov[0].comercio === 'Sin identificar' && mov[0].categoria === '', 'correo: la entrada de 1,00 se apunta como ingreso sin identificar');
+ok(mov[1].tipo === 'gasto' && mov[1].importe === 2.01 && mov[1].categoria === 'Otros' && mov[1].fecha === '2026-10-09T19:02:00', 'correo: la salida de 2,01 se apunta como gasto sin identificar');
+ok(t.cuentas.find(q => q.id === 'revolut').saldo === 50, 'correo: no toca otras cuentas');
+ok(disparadores.join() === 'tareaCorreo', 'correo: crea el disparador');
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.correo.nuevos === 0 && t.gastos.filter(q => q.origen === 'Banco').length === 2 && disparadores.length === 1, 'correo: repetir no duplica nada');
+reloj = hora(19, 12); t = post({ clave: 'k', accion: 'leer' }); cs = t.cuentas.find(q => q.id === 'banco-santander');
+ok(t.correo.aplicados === 1 && cs.saldo === 133 && cs.fechaSaldo === '2026-10-09T19:10:30' && t.gastos.filter(q => q.origen === 'Banco').length === 2, 'correo: un aviso que cuadra solo confirma el saldo');
+// pago con tarjeta cuyo apunte llega un poco después del aviso que ya lo incluye
+aviso('e5', hora(19, 20), '128,00');
+hojas.Gastos.f.push([new Date(2026, 9, 9, 19, 20, 40), 'Bar', 5, 'Santander Débito', 'Restaurantes', 'Apple Pay', '5,00 €', 'gap2', '', 'gasto', '']);
+reloj = hora(19, 30); t = post({ clave: 'k', accion: 'leer' }); cs = t.cuentas.find(q => q.id === 'banco-santander');
+ok(cs.saldo === 128 && cs.fechaSaldo === '2026-10-09T19:21:00' && t.gastos.filter(q => q.origen === 'Banco').length === 2, 'correo: el pago de Apple Pay no se cuenta dos veces');
+// la app guarda la cuenta sin saber las 4 cifras: se conservan
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'banco-santander', nombre: 'Banco Santander', saldo: 500, fechaSaldo: '2026-10-09T19:40:00', tarjetas: ['Santander'], orden: 1 } });
+delete props.correoHechos;   // aunque se olvide lo ya leído, los avisos viejos no pisan un saldo más nuevo
+reloj = hora(19, 45); t = post({ clave: 'k', accion: 'leer' }); cs = t.cuentas.find(q => q.id === 'banco-santander');
+ok(cs.terminaEn === '0061' && cs.saldo === 500 && t.correo.aplicados === 0 && t.gastos.filter(q => q.origen === 'Banco').length === 2, 'correo: conserva las 4 cifras y no aplica avisos anteriores al saldo anotado');
+// tarea programada
+aviso('e6', hora(19, 50), '480,00'); reloj = hora(19, 55);
+new Function(src + '; return tareaCorreo;')()();
+t = post({ clave: 'k', accion: 'leer' }); cs = t.cuentas.find(q => q.id === 'banco-santander');
+ok(cs.saldo === 480 && t.gastos.filter(q => q.origen === 'Banco' && q.importe === 20 && q.tipo === 'gasto').length === 1, 'correo: la tarea programada también lo aplica');
+gmailRoto = true; t = post({ clave: 'k', accion: 'leer' });
+ok(t.ok && t.correo.ok === false && /permiso/.test(t.correo.error) && t.cuentas.length === 2, 'correo: si falla Gmail, la app sigue funcionando');
+w = post({ clave: 'k', comercio: 'Mercadona', importe: '3,00 €', tarjeta: 'Santander Débito' });
+ok(w.ok, 'correo: si falla Gmail, el webhook sigue funcionando');
+Date.now = realNow;
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);
