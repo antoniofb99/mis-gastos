@@ -35,7 +35,10 @@ async def main():
                 if caido["v"]: return await route.abort()
                 await route.fulfill(status=200, content_type="application/json", headers={"access-control-allow-origin": "*"}, body=json.dumps(api(rq.post_data)))
             await pg.route(API + "**", ruta)
-            await pg.goto("http://127.0.0.1:8765/index.html"); await pg.wait_for_timeout(500)
+            # Face ID de mentira: un autenticador virtual del navegador (las llaves de acceso no valen en una IP, de ahí "localhost")
+            cdp = await ctx.new_cdp_session(pg); await cdp.send("WebAuthn.enable")
+            aut = (await cdp.send("WebAuthn.addVirtualAuthenticator", {"options": {"protocol": "ctap2", "transport": "internal", "hasResidentKey": True, "hasUserVerification": True, "isUserVerified": True, "automaticPresenceSimulation": True}}))["authenticatorId"]
+            await pg.goto("http://localhost:8765/index.html"); await pg.wait_for_timeout(500)
             ok(await pg.is_visible("#entrada"), "sin clave: pide la clave")
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-entrada.png")
             await pg.fill("#k-clave", "mala"); await pg.click("#k-entrar"); await pg.wait_for_timeout(300)
@@ -94,6 +97,47 @@ async def main():
             cs = [x for x in bd["cuentas"] if x["id"] == "banco-santander"][0]
             ok(fin == "0061" and cs["terminaEn"] == "0061" and cs["saldo"] == 143.0 and cs["fechaSaldo"] == corte, "editar la cuenta conserva las 4 cifras y el saldo del banco")
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-banco.png", full_page=True)
+            # --- bloqueo con Face ID ---
+            cara = lambda v: cdp.send("WebAuthn.setUserVerified", {"authenticatorId": aut, "isUserVerified": v})
+            cerrado = lambda: pg.evaluate("document.querySelector('#candado').hasAttribute('open')")
+            async def ocultar(v, salto=0):
+                await pg.evaluate("""([v, salto]) => { if (salto) { const r = Date.now.bind(Date), t = r() + salto; Date.now = () => t + (r() - (t - salto)); }
+                    Object.defineProperty(document, 'hidden', { configurable: true, get: () => v }); document.dispatchEvent(new Event('visibilitychange')); }""", [v, salto])
+            ok(await pg.locator("[data-bio]").inner_text() == "Activar Face ID" and not await cerrado(), "Face ID: se ofrece en Cuentas y la app empieza sin bloqueo")
+            await pg.click("[data-bio]"); await pg.wait_for_timeout(400)
+            bio = await pg.evaluate("localStorage.getItem('mg-bio')"); creds = (await cdp.send("WebAuthn.getCredentials", {"authenticatorId": aut}))["credentials"]
+            ok(bool(bio) and len(creds) == 1 and await pg.locator("[data-bio]").inner_text() == "Desactivar Face ID" and "activado" in await pg.inner_text("#toast"), "Face ID: activar guarda la llave en el teléfono")
+            await cara(False); await pg.reload(); await pg.wait_for_timeout(600)
+            ok(await cerrado() and await pg.is_visible("#cd-abrir") and not await pg.evaluate("document.querySelector('#candado').classList.contains('cortina')"), "Face ID: al abrir la app sale bloqueada")
+            tapado = await pg.evaluate("(() => { const e = document.elementFromPoint(195, 300); return !!e && !!e.closest('#candado'); })()")
+            ok(tapado, "Face ID: el bloqueo tapa la app")
+            await pg.click("#cd-abrir"); await pg.wait_for_timeout(500)
+            ok(await cerrado() and "No se ha podido" in await pg.inner_text("#cd-error"), "Face ID: si la cara no vale, sigue bloqueada y lo dice")
+            await pg.click("#cd-otra"); await pg.fill("#cd-clave", "otra-cosa"); await pg.click("#cd-entrar"); await pg.wait_for_timeout(200)
+            ok(await cerrado() and "no es correcta" in await pg.inner_text("#cd-error"), "Face ID: una clave mala no abre")
+            await pg.fill("#cd-clave", K); await pg.click("#cd-entrar"); await pg.wait_for_timeout(200)
+            ok(not await cerrado() and len(await sal()) == 2, "Face ID: la clave de la hoja abre de repuesto")
+            await cara(True); await pg.reload(); await pg.wait_for_timeout(700)
+            ok(not await cerrado() and len(await sal()) == 2, "Face ID: con la cara buena se abre sola al entrar")
+            # salir un momento y volver: se tapa, pero no vuelve a pedir la cara
+            await pg.click("#nuevo"); await pg.fill("#f-importe", "7,5")
+            await ocultar(True); await pg.wait_for_timeout(100)
+            cortina = await cerrado() and await pg.evaluate("document.querySelector('#candado').classList.contains('cortina')")
+            await cara(False); await ocultar(False); await pg.wait_for_timeout(500)
+            ok(cortina and not await cerrado() and await pg.input_value("#f-importe") == "7,5" and await pg.evaluate("document.querySelector('#hoja').open"), "Face ID: al salir se tapa; volver enseguida no pide la cara ni pierde lo escrito")
+            # volver pasado el minuto: pide la cara; si se sale y se vuelve con el bloqueo puesto, no se abre
+            await ocultar(True); await ocultar(False, 61000); await pg.wait_for_timeout(600)
+            a1 = await cerrado()
+            await ocultar(True); await ocultar(False); await pg.wait_for_timeout(600)
+            ok(a1 and await cerrado() and await pg.is_visible("#cd-abrir"), "Face ID: pasado un minuto fuera pide la cara, y salir y volver no se lo salta")
+            await cara(True); await pg.click("#cd-abrir"); await pg.wait_for_timeout(500)
+            ok(not await cerrado() and await pg.input_value("#f-importe") == "7,5", "Face ID: el botón desbloquea y lo que estaba a medias sigue ahí")
+            await pg.click("#hoja-cerrar")
+            await ocultar(True); await ocultar(False, 61000); await pg.wait_for_timeout(700)
+            ok(not await cerrado(), "Face ID: al volver tarde, con la cara buena se abre sola")
+            await pg.click("[data-bio]"); await pg.wait_for_timeout(200)
+            await pg.reload(); await pg.wait_for_timeout(500)
+            ok(await pg.evaluate("localStorage.getItem('mg-bio')") is None and not await cerrado() and await pg.locator("[data-bio]").inner_text() == "Activar Face ID", "Face ID: desactivar quita el bloqueo")
             # sin conexión: el cambio se deshace y avisa
             caido["v"] = True
             await pg.click('[data-tab="cuentas"]'); await pg.click("#nuevo"); await pg.fill("#f-importe", "50"); await pg.click("#f-categorias label:nth-child(1)"); await pg.click("#f-cuentas label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(500)

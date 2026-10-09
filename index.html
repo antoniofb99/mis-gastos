@@ -231,6 +231,15 @@ dialog.hoja::backdrop{background:var(--shade)}
 .entrada{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 20px;overflow:auto}
 .entrada form{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
 .entrada h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+/* Bloqueo con Face ID: tapa toda la app, también las hojas abiertas */
+dialog.candado{position:fixed;inset:0;z-index:40;box-sizing:border-box;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;padding:24px 20px;background:var(--bg);color:var(--ink);overflow:auto}
+dialog.candado[open]{display:flex;align-items:center;justify-content:center}
+dialog.candado::backdrop{background:var(--bg)}
+.candado .cd-caja{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
+.candado h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.candado form{display:flex;flex-direction:column;gap:10px}
+.candado .enlace{align-self:flex-start;padding:6px 0}
+.candado.cortina .cd-caja>:not(h1){visibility:hidden}
 .flecha.girando{opacity:.55}
 .pie-app{font-size:13px;color:var(--muted)}
 .pie-app .enlace.seguro{color:var(--over)}
@@ -356,6 +365,23 @@ dialog.hoja::backdrop{background:var(--shade)}
     <button class="btn primario" type="submit" id="k-entrar">Conectar</button>
   </form>
 </div>
+
+<dialog class="candado" id="candado" aria-labelledby="cd-titulo">
+  <div class="cd-caja">
+    <h1 id="cd-titulo">Mis Gastos</h1>
+    <p class="nota">La app está bloqueada.</p>
+    <button class="btn primario" type="button" id="cd-abrir">Desbloquear con Face ID</button>
+    <p class="error" id="cd-error" role="alert"></p>
+    <button class="enlace" type="button" id="cd-otra">Entrar con la clave</button>
+    <form id="cd-form" hidden novalidate>
+      <div class="grupo">
+        <label for="cd-clave">Clave de tu hoja</label>
+        <input class="texto" id="cd-clave" name="clave" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gastos-…">
+      </div>
+      <button class="btn" type="submit" id="cd-entrar">Entrar</button>
+    </form>
+  </div>
+</dialog>
 
 <div class="toast" id="toast" role="status" hidden></div>
 
@@ -759,6 +785,11 @@ dialog.hoja::backdrop{background:var(--shade)}
       h += '</div></section>';
     }
     h += '<div><button class="btn" type="button" data-nueva-cuenta>Añadir cuenta</button></div>';
+    if (BIO.id || BIO.hay) {
+      h += '<section class="sec"><header><h2>Seguridad</h2>' + (BIO.id ? '<span class="pill ok">Face ID activado</span>' : '') + '</header>' +
+        '<p class="nota">' + (BIO.id ? 'La app pide Face ID al abrirla y al volver después de un minuto fuera.' : 'Pide Face ID al abrir la app y al volver después de un minuto fuera. El teléfono te ofrecerá guardar una llave de acceso: acéptala.') + '</p>' +
+        '<div><button class="btn" type="button" data-bio>' + (BIO.id ? 'Desactivar Face ID' : 'Activar Face ID') + '</button></div></section>';
+    }
     h += '<p class="pie-app"><button class="enlace" type="button" data-salir>Desconectar este dispositivo</button> · Versión ' + esc(VERSION) + '</p>';
     el.innerHTML = h;
   }
@@ -1143,14 +1174,14 @@ dialog.hoja::backdrop{background:var(--shade)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-09.1935';
+  var VERSION = '2026-10-10.0047';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
       var j = await r.json();
       if (!j || !j.v || j.v === VERSION) return;
       if (location.search.indexOf('v=' + j.v) > -1) return;                  // ya se intentó: no entrar en bucle
-      if (DB.pendientes() || document.querySelector('dialog[open]')) return;   // no interrumpir lo que se está haciendo
+      if (BIO.estado !== 'no' || DB.pendientes() || document.querySelector('dialog[open]')) return;   // no interrumpir lo que se está haciendo
       location.replace(location.pathname + '?v=' + encodeURIComponent(j.v));
     } catch (e) { /* sin conexión: se mirará la próxima vez */ }
   }
@@ -1185,6 +1216,7 @@ dialog.hoja::backdrop{background:var(--shade)}
   function olvidarClave() {
     CLAVE = '';
     try { localStorage.removeItem('mg-clave'); } catch (e) {}
+    quitarBio();
     DB.vaciar();
     S.todos = []; S.presupuestos = []; S.cuentas = []; S.listoG = S.listoP = S.listoC = false;
   }
@@ -1216,8 +1248,108 @@ dialog.hoja::backdrop{background:var(--shade)}
     olvidarClave(); pedirClave('');
   });
 
+  /* ---------- bloqueo con Face ID ----------
+     Es un cierre de pantalla: la comprobación la hace el propio teléfono (una llave de acceso que pide Face ID)
+     y la app solo se enseña si sale bien. La clave de la hoja sirve de repuesto si Face ID falla. */
+  var BIO_GRACIA = 60000;   // al volver antes de un minuto no se pide otra vez
+  var BIO = { id: '', hay: false, estado: 'no', desde: 0, pidiendo: false, auto: false };   // estado: no | cortina | si
+  try { BIO.id = localStorage.getItem('mg-bio') || ''; } catch (e) {}
+  function bioSoportado() { return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext); }
+  function b64(buf) {
+    var s = ''; new Uint8Array(buf).forEach(function (b) { s += String.fromCharCode(b); });
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function deB64(t) {
+    var s = atob(String(t).replace(/-/g, '+').replace(/_/g, '/')), a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  }
+  function azar(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
+  function candadoVer(estado) {
+    var d = $('#candado'), abierto = d.hasAttribute('open');
+    BIO.estado = estado;
+    if (estado === 'no') { if (abierto) { if (d.close) d.close(); else d.removeAttribute('open'); } return; }
+    d.classList.toggle('cortina', estado === 'cortina');
+    if (!abierto) { if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+  }
+  function bloquear() {
+    $('#cd-error').textContent = ''; $('#cd-clave').value = '';
+    $('#cd-form').hidden = true; $('#cd-otra').hidden = false;
+    BIO.auto = false;
+    candadoVer('si');
+  }
+  function abrirCandado() { candadoVer('no'); comprobarVersion(); }
+  async function desbloquear(aMano) {
+    if (BIO.pidiendo || BIO.estado !== 'si') return;
+    BIO.pidiendo = true; $('#cd-abrir').disabled = true; $('#cd-error').textContent = '';
+    var bien = false;
+    try {
+      var c = await navigator.credentials.get({ publicKey: {
+        challenge: azar(32), timeout: 60000, userVerification: 'required',
+        allowCredentials: [{ type: 'public-key', id: deB64(BIO.id), transports: ['internal'] }]
+      } });
+      bien = !!c && (new Uint8Array(c.response.authenticatorData)[32] & 4) === 4;   // el teléfono confirma que ha comprobado a la persona
+    } catch (e) { bien = false; }
+    BIO.pidiendo = false; $('#cd-abrir').disabled = false;
+    if (bien) abrirCandado();
+    else if (aMano) $('#cd-error').textContent = 'No se ha podido comprobar. Inténtalo otra vez o entra con la clave.';
+  }
+  function entrarConClave(ev) {
+    ev.preventDefault();
+    if (CLAVE && $('#cd-clave').value.trim() === CLAVE) abrirCandado();
+    else $('#cd-error').textContent = 'Esa clave no es correcta.';
+  }
+  async function activarBio(boton) {
+    boton.disabled = true;
+    try {
+      var c = await navigator.credentials.create({ publicKey: {
+        challenge: azar(32), rp: { name: 'Mis Gastos' },
+        user: { id: new TextEncoder().encode('mis-gastos'), name: 'Mis Gastos', displayName: 'Mis Gastos' },   // siempre el mismo: activar otra vez no duplica la llave
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+        timeout: 60000, attestation: 'none'
+      } });
+      var id = b64(c.rawId);
+      localStorage.setItem('mg-bio', id);
+      BIO.id = id;
+      toast('Face ID activado');
+    } catch (e) { toast('No se ha activado Face ID'); }
+    pintar();
+  }
+  function quitarBio() {
+    BIO.id = '';
+    try { localStorage.removeItem('mg-bio'); } catch (e) {}
+    if (BIO.estado !== 'no') candadoVer('no');
+  }
+  function alCambiarVisibilidad() {
+    if (!BIO.id || !CLAVE) return;
+    if (document.hidden) {                                   // al salir se tapa la app: tampoco se ve en el selector de apps
+      if (BIO.estado === 'no') { BIO.desde = Date.now(); candadoVer('cortina'); }
+      return;
+    }
+    if (BIO.estado === 'cortina') {
+      if (Date.now() - BIO.desde < BIO_GRACIA) { candadoVer('no'); return; }
+      bloquear();
+    }
+    if (BIO.estado === 'si' && !BIO.auto) { BIO.auto = true; setTimeout(function () { desbloquear(false); }, 250); }   // un solo intento automático; después, el botón
+  }
+  $('#candado').addEventListener('cancel', function (e) { e.preventDefault(); });   // Escape no lo cierra
+  $('#cd-abrir').addEventListener('click', function () { desbloquear(true); });
+  $('#cd-otra').addEventListener('click', function () { $('#cd-form').hidden = false; $('#cd-otra').hidden = true; $('#cd-error').textContent = ''; $('#cd-clave').focus(); });
+  $('#cd-form').addEventListener('submit', entrarConClave);
+  $('#v-cuentas').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-bio]');
+    if (!b) return;
+    if (BIO.id) { quitarBio(); toast('Face ID desactivado'); pintar(); } else activarBio(b);
+  });
+  document.addEventListener('visibilitychange', alCambiarVisibilidad);
+  if (bioSoportado() && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+    PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(function (si) { BIO.hay = !!si; if (si) pintar(); }).catch(function () {});
+  }
+
   /* ---------- arranque ---------- */
   async function iniciar() {
+    if (CLAVE && BIO.id) { bloquear(); BIO.auto = true; desbloquear(false); }   // antes de pintar nada
     pintar();
     var db = DB;
     S.db = db;
