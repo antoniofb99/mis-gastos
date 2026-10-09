@@ -759,7 +759,7 @@ dialog.hoja::backdrop{background:var(--shade)}
       h += '</div></section>';
     }
     h += '<div><button class="btn" type="button" data-nueva-cuenta>Añadir cuenta</button></div>';
-    h += '<p class="pie-app"><button class="enlace" type="button" data-salir>Desconectar este dispositivo</button></p>';
+    h += '<p class="pie-app"><button class="enlace" type="button" data-salir>Desconectar este dispositivo</button> · Versión ' + esc(VERSION) + '</p>';
     el.innerHTML = h;
   }
 
@@ -1141,6 +1141,19 @@ dialog.hoja::backdrop{background:var(--shade)}
     };
   })();
 
+  /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
+     (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
+  var VERSION = '2026-10-09.1935';
+  async function comprobarVersion() {
+    try {
+      var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      var j = await r.json();
+      if (!j || !j.v || j.v === VERSION) return;
+      if (location.search.indexOf('v=' + j.v) > -1) return;                  // ya se intentó: no entrar en bucle
+      if (DB.pendientes() || document.querySelector('dialog[open]')) return;   // no interrumpir lo que se está haciendo
+      location.replace(location.pathname + '?v=' + encodeURIComponent(j.v));
+    } catch (e) { /* sin conexión: se mirará la próxima vez */ }
+  }
   var refrescando = false, reloj = null;
   function marcaSync() { $('#sync').classList.toggle('girando', refrescando || DB.pendientes() > 0); }
   async function refrescar(manual) {
@@ -1163,9 +1176,10 @@ dialog.hoja::backdrop{background:var(--shade)}
   function arrancar(yaCargado) {
     $('#entrada').hidden = true;
     if (!yaCargado) { DB.cargarCache(); refrescar(false); }
+    comprobarVersion();
     if (!reloj) {
       reloj = setInterval(function () { if (!document.hidden) refrescar(false); }, 60000);
-      document.addEventListener('visibilitychange', function () { if (!document.hidden) refrescar(false); });
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) { refrescar(false); comprobarVersion(); } });
     }
   }
   function olvidarClave() {
