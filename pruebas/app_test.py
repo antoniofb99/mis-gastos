@@ -103,10 +103,14 @@ async def main():
             async def ocultar(v, salto=0):
                 await pg.evaluate("""([v, salto]) => { if (salto) { const r = Date.now.bind(Date), t = r() + salto; Date.now = () => t + (r() - (t - salto)); }
                     Object.defineProperty(document, 'hidden', { configurable: true, get: () => v }); document.dispatchEvent(new Event('visibilitychange')); }""", [v, salto])
-            ok(await pg.locator("[data-bio]").inner_text() == "Activar Face ID" and not await cerrado(), "Face ID: se ofrece en Cuentas y la app empieza sin bloqueo")
-            await pg.click("[data-bio]"); await pg.wait_for_timeout(400)
+            marcado = lambda: pg.get_attribute("#bio-toggle", "aria-checked")
+            antes_menu = await pg.is_hidden("#menu"); await pg.click("#ajustes"); await pg.wait_for_timeout(100)
+            ok(antes_menu and await pg.is_visible("#menu") and await marcado() == "false" and await pg.is_enabled("#bio-toggle") and not await cerrado() and "Versión" in await pg.inner_text("#m-version"), "ajustes: el engranaje abre el desplegable con Face ID apagado")
+            await pg.click("#bio-toggle"); await pg.wait_for_timeout(400)
             bio = await pg.evaluate("localStorage.getItem('mg-bio')"); creds = (await cdp.send("WebAuthn.getCredentials", {"authenticatorId": aut}))["credentials"]
-            ok(bool(bio) and len(creds) == 1 and await pg.locator("[data-bio]").inner_text() == "Desactivar Face ID" and "activado" in await pg.inner_text("#toast"), "Face ID: activar guarda la llave en el teléfono")
+            ok(bool(bio) and len(creds) == 1 and await marcado() == "true" and await pg.is_visible("#menu") and "activado" in await pg.inner_text("#toast"), "Face ID: el interruptor lo activa y guarda la llave en el teléfono")
+            await pg.mouse.click(120, 500); await pg.wait_for_timeout(100)
+            ok(await pg.is_hidden("#menu") and await pg.get_attribute("#ajustes", "aria-expanded") == "false", "ajustes: tocar fuera cierra el desplegable")
             await cara(False); await pg.reload(); await pg.wait_for_timeout(600)
             ok(await cerrado() and await pg.is_visible("#cd-abrir") and not await pg.evaluate("document.querySelector('#candado').classList.contains('cortina')"), "Face ID: al abrir la app sale bloqueada")
             tapado = await pg.evaluate("(() => { const e = document.elementFromPoint(195, 300); return !!e && !!e.closest('#candado'); })()")
@@ -135,9 +139,14 @@ async def main():
             await pg.click("#hoja-cerrar")
             await ocultar(True); await ocultar(False, 61000); await pg.wait_for_timeout(700)
             ok(not await cerrado(), "Face ID: al volver tarde, con la cara buena se abre sola")
-            await pg.click("[data-bio]"); await pg.wait_for_timeout(200)
-            await pg.reload(); await pg.wait_for_timeout(500)
-            ok(await pg.evaluate("localStorage.getItem('mg-bio')") is None and not await cerrado() and await pg.locator("[data-bio]").inner_text() == "Activar Face ID", "Face ID: desactivar quita el bloqueo")
+            await pg.click("#ajustes"); m1 = await marcado(); await pg.click("#bio-toggle"); await pg.wait_for_timeout(200); m2 = await marcado()
+            await pg.reload(); await pg.wait_for_timeout(500); await pg.click("#ajustes")
+            ok(m1 == "true" and m2 == "false" and await pg.evaluate("localStorage.getItem('mg-bio')") is None and not await cerrado() and await marcado() == "false", "Face ID: apagar el interruptor quita el bloqueo")
+            await pg.click('[data-tab="resumen"]'); cerr = await pg.is_hidden("#menu"); await pg.click("#ajustes"); await pg.wait_for_timeout(100)
+            caja = await pg.evaluate("(() => { const r = document.querySelector('#menu').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.width > 250; })()")
+            await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-ajustes.png")
+            await pg.keyboard.press("Escape"); await pg.click('[data-tab="cuentas"]')
+            ok(cerr and caja and await pg.is_hidden("#menu"), "ajustes: cambiar de pestaña lo cierra y cabe en la pantalla")
             # sin conexión: el cambio se deshace y avisa
             caido["v"] = True
             await pg.click('[data-tab="cuentas"]'); await pg.click("#nuevo"); await pg.fill("#f-importe", "50"); await pg.click("#f-categorias label:nth-child(1)"); await pg.click("#f-cuentas label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(500)
@@ -147,6 +156,10 @@ async def main():
             ov = await pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
             ok(ov == 0 and not errs, "sin desbordes ni errores de script %s" % errs)
             ok(set(llamadas) >= {"leer", "gasto.guardar", "cuenta.guardar", "presupuesto.guardar"}, "acciones usadas: %s" % sorted(set(llamadas)))
+            await pg.click("#hoja-cerrar")   # la hoja del gasto que no se pudo guardar sigue abierta
+            await pg.click("#ajustes"); await pg.click("#salir"); medio = await pg.is_hidden("#entrada") and "Sí, desconectar" in await pg.inner_text("#salir")
+            await pg.click("#salir"); await pg.wait_for_timeout(200)
+            ok(medio and await pg.is_visible("#entrada") and await pg.is_hidden("#menu") and await pg.evaluate("localStorage.getItem('mg-clave')") is None, "ajustes: desconectar pide confirmación y vuelve a pedir la clave")
             await b.close()
     finally:
         srv.terminate()
