@@ -166,5 +166,12 @@ gmailRoto = true; t = post({ clave: 'k', accion: 'leer' });
 ok(t.ok && t.correo.ok === false && /permiso/.test(t.correo.error) && t.cuentas.length === 2, 'correo: si falla Gmail, la app sigue funcionando');
 w = post({ clave: 'k', comercio: 'Mercadona', importe: '3,00 €', tarjeta: 'Santander Débito' });
 ok(w.ok, 'correo: si falla Gmail, el webhook sigue funcionando');
+// la hoja devuelve la fecha del saldo con espacio o como fecha: se normaliza
+gmailRoto = false;
+hojas.Cuentas.f[1][3] = '2026-10-09 18:02:22'; hojas.Cuentas.f[2][3] = new Date(2026, 9, 9, 18, 2, 46);
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.cuentas[0].fechaSaldo === '2026-10-09T18:02:22' && t.cuentas[1].fechaSaldo === '2026-10-09T18:02:46', 'la fecha del saldo sale siempre con T (' + t.cuentas[0].fechaSaldo + ', ' + t.cuentas[1].fechaSaldo + ')');
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'revolut', nombre: 'Revolut', saldo: 50, fechaSaldo: '2026-10-09 20:00', tarjetas: [], orden: 2 } });
+ok(hojas.Cuentas.f[2][3] === '2026-10-09T20:00:00', 'al guardar, la fecha del saldo se normaliza');
 Date.now = realNow;
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

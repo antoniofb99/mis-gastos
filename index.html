@@ -430,7 +430,7 @@ dialog.hoja::backdrop{background:var(--shade)}
   function norm(t) {
     return String(t == null ? '' : t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
   }
-  function sello(f) { f = String(f || ''); return f.length === 16 ? f + ':00' : f; }   // "AAAA-MM-DDTHH:mm" -> con segundos
+  function sello(f) { f = String(f || '').replace(' ', 'T'); return f.length === 16 ? f + ':00' : f; }   // "AAAA-MM-DDTHH:mm" -> con segundos
   function ahoraISO() {
     var d = new Date();
     return claveDia(d) + 'T' + dos(d.getHours()) + ':' + dos(d.getMinutes()) + ':' + dos(d.getSeconds());
@@ -468,7 +468,7 @@ dialog.hoja::backdrop{background:var(--shade)}
   }
   function conSigno(n) { return (n < 0 ? '−' : '+') + eur(Math.abs(n)); }
   function fechaHora(f) {
-    var d = new Date(f);
+    var d = new Date(sello(f));
     return isNaN(d) ? '' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   }
 

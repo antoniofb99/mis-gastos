@@ -131,7 +131,7 @@ function leerGastos() {
     const categoria = String(f[4] || '');
     salida.push({
       id: id,
-      fecha: f[0] instanceof Date ? Utilities.formatDate(f[0], zona, F_FECHA) : String(f[0] || ''),
+      fecha: fechaTexto(f[0], zona),
       comercio: String(f[1] || ''),
       importe: typeof f[2] === 'number' ? f[2] : (leerImporte(f[2]) || 0),
       tarjeta: String(f[3] || ''),
@@ -193,7 +193,7 @@ function leerCuentas() {
       id: String(f[0]),
       nombre: String(f[1] || ''),
       saldo: typeof f[2] === 'number' ? f[2] : null,
-      fechaSaldo: f[3] instanceof Date ? Utilities.formatDate(f[3], zona, F_FECHA) : String(f[3] || ''),
+      fechaSaldo: fechaTexto(f[3], zona),
       tarjetas: String(f[4] || '').split(',').map(function (t) { return t.trim(); }).filter(String),
       orden: Number(f[5]) || 0,
       terminaEn: cuatroCifras(f[6]),
@@ -214,7 +214,7 @@ function guardarCuenta(c) {
     String(c.id),
     texto(c.nombre),
     typeof c.saldo === 'number' ? c.saldo : '',
-    String(c.fechaSaldo || ''),
+    c.fechaSaldo ? "'" + fechaTexto(c.fechaSaldo, zonaHoraria()) : '',
     texto(tarjetas.join(', ')),
     Number(c.orden) || 0,
     cuatroCifras(terminaEn),
@@ -357,6 +357,15 @@ function textoDelCorreo(mensaje) {
 function conSegundos(fecha) {
   const f = String(fecha || '');
   return f.length === 16 ? f + ':00' : f;
+}
+
+// Fecha y hora siempre como "AAAA-MM-DDTHH:mm:ss", venga de la hoja como fecha o como texto
+// (la hoja a veces convierte el texto en fecha, o lo muestra con un espacio en lugar de la T).
+function fechaTexto(valor, zona) {
+  if (valor instanceof Date) return Utilities.formatDate(valor, zona, F_FECHA);
+  const t = String(valor == null ? '' : valor).trim();
+  const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(:\d{2})?/.exec(t);
+  return m ? m[1] + 'T' + m[2] + (m[3] || ':00') : t;
 }
 
 function sinTildes(valor) {
