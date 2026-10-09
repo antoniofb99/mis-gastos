@@ -25,8 +25,8 @@ function limpia(v) { return (typeof v === 'string' && v[0] === "'") ? v.slice(1)
 const p2 = n => String(n).padStart(2, '0');
 global.SpreadsheetApp = { getActiveSpreadsheet: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n)), getSpreadsheetTimeZone: () => 'local' }) };
 global.Utilities = {
-  base64DecodeWebSafe: t => Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64'),
-  newBlob: b => ({ getDataAsString: () => b.toString('utf8') }),
+  base64DecodeWebSafe: t => { if (typeof t !== 'string') throw new Error('Could not decode string.'); return Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64'); },
+  newBlob: b => ({ getDataAsString: () => Buffer.from(b).toString('utf8') }),
   getUuid: () => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16)),
   formatDate: d => d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()),
   parseDate: s => { const m = s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)/).map(Number); return new Date(m[1], m[2]-1, m[3], m[4], m[5], m[6]); },
@@ -35,7 +35,7 @@ const correos = []; const props = {}; const disparadores = []; let gmailRoto = f
 const b64 = t => Buffer.from(t, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
 global.Gmail = { Users: { Messages: {
   list: (yo, o) => { if (gmailRoto) throw new Error('Sin permiso para Gmail'); return { messages: correos.filter(c => o.q.indexOf(c.de) > -1).map(c => ({ id: c.id })).reverse() }; },
-  get: (yo, id) => { const c = correos.find(x => x.id === id); return { id, internalDate: String(c.t), snippet: '', payload: { mimeType: 'multipart/alternative', parts: [{ mimeType: 'text/html', body: { data: b64(c.html) } }] } }; },
+  get: (yo, id) => { const c = correos.find(x => x.id === id); return { id, internalDate: String(c.t), snippet: '', payload: { mimeType: 'multipart/alternative', parts: [{ mimeType: 'text/html', body: { data: c.id === 'e2' ? b64(c.html) : Array.from(Buffer.from(c.html, 'utf8')) } }] } }; },
 } } };
 global.PropertiesService = { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = v; } }) };
 global.ScriptApp = { getProjectTriggers: () => disparadores.map(f => ({ getHandlerFunction: () => f })), newTrigger: f => ({ timeBased() { return this; }, everyMinutes() { return this; }, create() { disparadores.push(f); } }) };

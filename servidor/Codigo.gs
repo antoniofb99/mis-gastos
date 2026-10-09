@@ -359,7 +359,12 @@ function textoDelCorreo(mensaje) {
   (function recorrer(p) {
     if (!p) return;
     if (p.body && p.body.data) {
-      const t = Utilities.newBlob(Utilities.base64DecodeWebSafe(p.body.data)).getDataAsString('UTF-8');
+      let t = '';
+      try {
+        // Apps Script suele entregar el cuerpo ya como bytes; si llega en base64, se decodifica.
+        const d = p.body.data;
+        t = Utilities.newBlob(typeof d === 'string' ? Utilities.base64DecodeWebSafe(d) : d).getDataAsString('UTF-8');
+      } catch (err) { t = ''; }   // si una parte no se puede leer, queda el resumen del mensaje
       if (p.mimeType === 'text/plain') partes.plano += ' ' + t;
       else if (p.mimeType === 'text/html') partes.html += ' ' + t;
     }
