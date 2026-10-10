@@ -21,18 +21,17 @@
 /* Base: lo que antes ponía el visor de Claude */
 html{padding-top:env(safe-area-inset-top,0px);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 body{margin:0}
-/* El fondo de la página es el del cuerpo, que llena siempre la pantalla. El del lienzo (html) solo se ve
-   fuera de la página: al rebotar el scroll y, con el fallo de iOS de abajo, en el hueco bajo el menú. */
+/* El fondo de la página es el del cuerpo, que llena siempre la pantalla. */
 html{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;background:var(--bg);
-  --sab:max(0px,calc(env(safe-area-inset-bottom,0px) - var(--hueco,0px)))}
+  --sab:calc(env(safe-area-inset-bottom,0px) - var(--hueco,0px))}
 body{flex:1 0 auto;min-width:0}
-/* Fallo de iOS (WebKit 301994): a veces la app instalada recibe menos alto que la pantalla y queda un hueco
-   bajo el menú. No se puede ocupar, y iOS lo pinta con el color de fondo del cuerpo. Por eso, cuando ocurre,
-   el cuerpo toma el color del menú (el hueco parece parte de él), el fondo de la página pasa a una capa fija
-   por detrás del contenido y el menú baja lo que iOS deja (--sab). */
-html.hueco{background:none}
+/* Fallo de iOS (WebKit 301994): a veces la app instalada recibe menos alto que la pantalla y queda una franja
+   vacía bajo el menú (--hueco, lo mide el script). La página se alarga esa misma medida para ocuparla y el menú,
+   el botón y los avisos bajan con ella (--sab resta el hueco). Por si iOS no dejara pintar ahí, la franja toma
+   el color del menú: iOS la pinta con el fondo del cuerpo, así que el lila pasa a una capa fija por detrás. */
+html.hueco{background:none;min-height:calc(100% + var(--hueco))}
 html.hueco body{background:var(--paper)}
-html.hueco body::after{content:"";position:fixed;z-index:-1;top:0;left:0;right:0;bottom:0;background:var(--bg)}
+html.hueco body::after{content:"";position:fixed;z-index:-1;top:0;left:0;right:0;bottom:calc(-1 * var(--hueco));background:var(--bg)}
 img{max-width:100%}
 [hidden]{display:none!important}
 button{touch-action:manipulation}
@@ -192,7 +191,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .rosco .sub{font-size:11px;color:var(--muted)}
 .reparto>.nota{text-align:center}
 .ctas{display:flex;flex-direction:column;gap:9px}
-.cuenta{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:8px 15px 8px 9px;text-align:left;background:var(--paper);border-radius:16px}
+.cuenta{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:10px 15px 10px 10px;text-align:left;background:var(--paper);border-radius:16px}
 .logo{flex:none;position:relative;width:36px;height:36px;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px rgba(38,37,56,.10);display:grid;place-items:center;font-size:12.5px;font-weight:800;letter-spacing:-.02em;color:#262538}
 .logo img{display:block;width:100%;height:100%;border-radius:10px}
 .logo.letras{background:var(--track);box-shadow:none;color:var(--ink)}
@@ -238,7 +237,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 
 /* Navegación inferior */
 .fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(72px + var(--sab));background:var(--accent-f);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
-.tabs{position:fixed;z-index:6;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:var(--sab)}
+.tabs{position:fixed;z-index:6;left:0;right:0;bottom:calc(-1 * var(--hueco,0px));background:var(--paper);border-top:1px solid var(--rule);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tabs div{max-width:540px;margin-inline:auto;display:flex;justify-content:space-between;padding:6px 4px 4px}
 .tabs button{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 1px 3px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;color:var(--muted)}
 .tabs svg{display:block;width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -1632,16 +1631,7 @@ dialog.candado::backdrop{background:var(--bg)}
     } catch (e) {}
     document.documentElement.classList.toggle('hueco', h > 0);
     document.documentElement.style.setProperty('--hueco', h + 'px');
-    if (h > 0 && !reajustado) {   // una vez por carga: volver a declarar el área de pantalla hace que iOS, a veces, recalcule el alto
-      reajustado = true;
-      var m = document.querySelector('meta[name="viewport"]'), c = m && m.getAttribute('content');
-      if (c && c.indexOf(',viewport-fit=cover') > -1) {
-        m.setAttribute('content', c.replace(',viewport-fit=cover', ''));
-        setTimeout(function () { m.setAttribute('content', c); setTimeout(medirHueco, 350); }, 60);
-      }
-    }
   }
-  var reajustado = false;
   medirHueco();
   ['resize', 'orientationchange', 'pageshow'].forEach(function (ev) { window.addEventListener(ev, medirHueco); });
   document.addEventListener('visibilitychange', medirHueco);
@@ -1821,7 +1811,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-10.2320';
+  var VERSION = '2026-10-10.2329';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo

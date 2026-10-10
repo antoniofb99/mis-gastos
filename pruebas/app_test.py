@@ -138,10 +138,10 @@ async def main():
             fondo = await col("body")
             normal = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await col("html") == await col("body"), await pg.evaluate("document.body.getBoundingClientRect().bottom >= innerHeight - 1")]
             await pg.evaluate("Object.defineProperty(navigator, 'standalone', { configurable: true, get: () => true }); Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight + 59 }); dispatchEvent(new Event('resize'))")
-            roto = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await pg.evaluate("document.documentElement.style.getPropertyValue('--hueco')"), await col("body") == await col(".tabs"), await pg.evaluate("getComputedStyle(document.body, '::after').backgroundColor") == fondo and fondo != await col(".tabs")]
+            roto = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await pg.evaluate("document.documentElement.style.getPropertyValue('--hueco')"), await col("body") == await col(".tabs"), await pg.evaluate("getComputedStyle(document.body, '::after').backgroundColor") == fondo and fondo != await col(".tabs"), await pg.eval_on_selector(".tabs", "e => getComputedStyle(e).bottom"), await pg.evaluate("document.documentElement.getBoundingClientRect().height - innerHeight")]
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-hueco.png")
             await pg.evaluate("Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight }); dispatchEvent(new Event('resize'))")
-            ok(normal == [False, True, True] and roto == [True, "59px", True, True] and not await pg.evaluate("document.documentElement.classList.contains('hueco')"), "hueco de iOS: sin él todo igual; con él, el fondo de fuera toma el color del menú (%s | %s)" % (normal, roto))
+            ok(normal == [False, True, True] and roto == [True, "59px", True, True, "-59px", 59] and not await pg.evaluate("document.documentElement.classList.contains('hueco')"), "hueco de iOS: sin él todo igual; con él, el fondo de fuera toma el color del menú (%s | %s)" % (normal, roto))
             # --- versión nueva: se carga escribiendo la página encima, sin recargar (recargar deja el hueco en iOS)
             import re as _re
             actual = open("index.html", encoding="utf-8").read(); NUEVA = "2099-01-01.0000"
