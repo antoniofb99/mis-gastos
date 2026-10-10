@@ -116,6 +116,18 @@ async def main():
             ok(c1 == ["Tarjeta comida (Restaurante)", "200,55\u00a0€", "58 % del total"] and ap == ["banco-santander"] and marc == ["Tarjeta comida (Restaurante)"] and c2[0] == "Banco Santander" and c2[2] == "42 % del total" and c3 == c0, "gráfico: tocar un trozo enseña esa cuenta y su parte; tocarlo otra vez vuelve al total (%s | %s)" % (c1, c2))
             cabe = await pg.evaluate("(() => { const c = document.querySelector('.rosco .cifra').getBoundingClientRect(), r = document.querySelector('.rosco').getBoundingClientRect(); return c.width < r.width * 0.70; })()")
             ok(cabe, "gráfico: la cifra cabe dentro del círculo")
+            # --- el ojo: difumina los importes y se recuerda
+            filtro = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).filter")
+            logos = await pg.eval_on_selector_all(".cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : 'letras'))")
+            f0 = [await filtro(".cuenta .saldo"), await filtro(".rosco .cifra"), await pg.get_attribute("#ojo", "aria-pressed")]
+            await pg.click("#ojo"); f1 = [await filtro(".cuenta .saldo"), await filtro(".rosco .cifra"), await filtro(".cuenta .nombre"), await pg.get_attribute("#ojo", "aria-pressed"), await pg.get_attribute("#ojo", "aria-label")]
+            await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-ojo.png")
+            await pg.click('[data-tab="movimientos"]'); f2 = await filtro(".mov .m-i"); await pg.click('[data-tab="resumen"]'); f3 = [await filtro("#v-resumen .total"), await pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")]; tit = [await pg.evaluate("document.querySelector('#mes-txt').getClientRects().length"), (await pg.inner_text("#mes-sub")).lower(), await pg.inner_text("#mes-txt")]
+            await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-ojo-resumen.png")
+            await pg.reload(); await pg.wait_for_timeout(500); f4 = [await filtro(".cuenta .saldo"), await pg.get_attribute("#ojo", "aria-pressed")]
+            await pg.click("#ojo"); f5 = [await filtro(".cuenta .saldo"), await pg.get_attribute("#ojo", "aria-pressed"), await pg.evaluate("localStorage.getItem('mg-oculto')")]
+            ok(logos == ["banco-santander:img", "tarjeta-comida:img"] and f0 == ["none", "none", "false"] and f1 == ["blur(7px)", "blur(7px)", "none", "true", "Mostrar los saldos"] and f2 == "blur(7px)" and f3 == ["blur(7px)", 0]
+               and f4 == ["blur(7px)", "true"] and f5 == ["none", "false", "0"] and tit[0] == 1 and tit[1] == "mis gastos · " + datetime.now().strftime("%Y") and " " not in tit[2], "ojo: difumina saldos e importes (no los nombres), se recuerda al recargar y se quita con otro toque (%s | %s | %s)" % (f1, f4, f5))
             # --- bloqueo con Face ID ---
             cara = lambda v: cdp.send("WebAuthn.setUserVerified", {"authenticatorId": aut, "isUserVerified": v})
             cerrado = lambda: pg.evaluate("document.querySelector('#candado').hasAttribute('open')")
