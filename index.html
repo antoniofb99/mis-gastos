@@ -1772,7 +1772,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.1835';
+  var VERSION = '2026-10-10.2136';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -1812,6 +1812,16 @@ dialog.candado::backdrop{background:var(--bg)}
     aprendiendo = false;
     if (n) toast(n === 1 ? 'Reconocido solo: ' + ultimo : n + ' movimientos reconocidos solos');
   }
+  /* Lee todo de la hoja. Una respuesta "correcta" pero sin las listas (por ejemplo, la del webhook) no es válida:
+     si se cargara, borraría la copia local y la app parecería vacía. */
+  async function leerHoja(clave) {
+    for (var intento = 1; ; intento++) {
+      var j = await llamar('leer', null, clave);
+      if (Array.isArray(j.gastos) && Array.isArray(j.presupuestos) && Array.isArray(j.cuentas)) return j;
+      if (intento === 2) { var e = new Error('respuesta sin datos' + (j.mensaje ? ': ' + String(j.mensaje).slice(0, 60) : '')); e.code = 'servidor'; throw e; }
+      await new Promise(function (r) { setTimeout(r, 1200); });   // un segundo intento antes de avisar
+    }
+  }
   var refrescando = false, reloj = null;
   function marcaSync() { $('#sync').classList.toggle('girando', refrescando || DB.pendientes() > 0); }
   async function refrescar(manual) {
@@ -1819,14 +1829,18 @@ dialog.candado::backdrop{background:var(--bg)}
     refrescando = true; marcaSync();
     var g0 = DB.gen();
     try {
-      var j = await llamar('leer');
+      var j = await leerHoja();
       if (DB.gen() === g0 && !DB.pendientes()) { DB.cargar(j); aprender(); }   // si has cambiado algo mientras tanto, manda lo tuyo
       S.error = '';
       if (manual) toast('Datos al día');
     } catch (e) {
       if (e.code === 'clave') { olvidarClave(); pedirClave('La clave ya no es válida. Pégala de nuevo.'); }
       else if (!DB.cargado()) S.error = 'No se ha podido conectar con tu hoja. Comprueba la conexión y pulsa el botón de actualizar.';
-      else if (manual) toast(e.code === 'red' ? 'Sin conexión' : 'No se ha podido actualizar');
+      else {
+        // Con conexión pero con la hoja respondiendo mal, se avisa: lo que se ve es la última copia guardada.
+        if (e.code === 'servidor') S.error = 'Tu hoja no ha respondido bien (' + e.message + '). Estás viendo la última copia guardada; pulsa el botón de actualizar para reintentar.';
+        if (manual) toast(e.code === 'red' ? 'Sin conexión' : 'No se ha podido actualizar');
+      }
     }
     refrescando = false; marcaSync();
     pintar();
@@ -1857,7 +1871,7 @@ dialog.candado::backdrop{background:var(--bg)}
     if (!k) { $('#k-error').textContent = 'Pega la clave.'; return; }
     b.disabled = true; b.textContent = 'Conectando…'; $('#k-error').textContent = '';
     try {
-      var j = await llamar('leer', null, k);
+      var j = await leerHoja(k);
       CLAVE = k;
       try { localStorage.setItem('mg-clave', k); } catch (e) {}
       DB.cargar(j); arrancar(true);

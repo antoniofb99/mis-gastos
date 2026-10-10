@@ -7,13 +7,13 @@ bd = {"gastos": [{"id": "g1", "fecha": "2026-10-09T16:59:40", "comercio": "PRUEB
       "presupuestos": [{"id": "supermercado", "nombre": "Supermercado", "limite": 350, "orden": 1}, {"id": "restaurantes", "nombre": "Restaurantes", "limite": 150, "orden": 2}],
       "cuentas": [{"id": "banco-santander", "nombre": "Banco Santander", "saldo": 144.01, "fechaSaldo": "2026-10-09T18:02:22", "tarjetas": ["Santander"], "orden": 1},
                   {"id": "tarjeta-comida", "nombre": "Tarjeta comida (Restaurante)", "saldo": 212.05, "fechaSaldo": "2026-10-09T18:03:49", "tarjetas": [], "orden": 4}]}
-llamadas = []; caido = {"v": False}
+llamadas = []; caido = {"v": False}; raro = {"v": None}
 def api(body):
     d = json.loads(body); llamadas.append(d.get("accion"))
     assert "clave" in d
     if d["clave"] != K: return {"ok": False, "error": "Clave incorrecta"}
     a = d.get("accion")
-    if a == "leer": return dict(ok=True, **json.loads(json.dumps(bd)))
+    if a == "leer": return raro["v"] or dict(ok=True, **json.loads(json.dumps(bd)))
     col, op = a.split("."); lista = bd[col + "s"]
     if op == "guardar":
         x = d[col]; lista[:] = [y for y in lista if y["id"] != x["id"]] + [x]
@@ -116,6 +116,14 @@ async def main():
             ok(c1 == ["Tarjeta comida (Restaurante)", "200,55\u00a0€", "58 % del total"] and ap == ["banco-santander"] and marc == ["Tarjeta comida (Restaurante)"] and c2[0] == "Banco Santander" and c2[2] == "42 % del total" and c3 == c0, "gráfico: tocar un trozo enseña esa cuenta y su parte; tocarlo otra vez vuelve al total (%s | %s)" % (c1, c2))
             cabe = await pg.evaluate("(() => { const c = document.querySelector('.rosco .cifra').getBoundingClientRect(), r = document.querySelector('.rosco').getBoundingClientRect(); return c.width < r.width * 0.70; })()")
             ok(cabe, "gráfico: la cifra cabe dentro del círculo")
+            # --- la hoja responde "ok" pero sin datos (la respuesta del webhook): no se pierde lo que había
+            antes_raro = await sal(); raro["v"] = {"ok": True, "mensaje": "Webhook de gastos activo"}
+            n0 = llamadas.count("leer"); await pg.click("#sync"); await pg.wait_for_timeout(1900); reintentos = llamadas.count("leer") - n0
+            aviso = await pg.inner_text("#aviso-error") if await pg.is_visible("#aviso-error") else ""; cache = await pg.evaluate("Object.keys(JSON.parse(localStorage.getItem('mg-datos')).cuentas).length")
+            await pg.reload(); await pg.wait_for_timeout(600); tras = await sal(); await pg.wait_for_timeout(1500)
+            raro["v"] = None; await pg.click("#sync"); await pg.wait_for_timeout(500)
+            ok(reintentos == 2 and len(antes_raro) == 2 and await sal() == antes_raro and tras == antes_raro and cache == 2 and "Webhook de gastos activo" in aviso and "última copia" in aviso and await pg.is_hidden("#aviso-error"),
+               "respuesta sin datos: se conservan las cuentas, se avisa y al volver la hoja se quita el aviso (%s)" % aviso)
             # --- el ojo: difumina los importes y se recuerda
             filtro = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).filter")
             logos = await pg.eval_on_selector_all(".cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : 'letras'))")
