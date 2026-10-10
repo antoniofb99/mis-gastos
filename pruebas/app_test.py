@@ -97,6 +97,9 @@ async def main():
             cs = [x for x in bd["cuentas"] if x["id"] == "banco-santander"][0]
             ok(fin == "0061" and cs["terminaEn"] == "0061" and cs["saldo"] == 143.0 and cs["fechaSaldo"] == corte, "editar la cuenta conserva las 4 cifras y el saldo del banco")
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-banco.png", full_page=True)
+            # --- con el script antiguo de la hoja (no manda "saldos") la pestaña Ahorro y los papeles no se enseñan
+            await pg.click('[data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); sinrol = await pg.is_hidden("#c-rol-grupo"); await pg.click("#hc-cerrar")
+            ok(await pg.is_hidden('[data-tab="ahorro"]') and await pg.locator(".tabs button:visible").count() == 4 and sinrol, "servidor antiguo: sin pestaña Ahorro ni papeles hasta que se actualice")
             # --- gráfico circular de Cuentas ---
             centro = lambda: pg.eval_on_selector(".rosco .centro", "e => [...e.children].map(x => x.textContent)")
             segs = await pg.eval_on_selector_all(".rosco .seg", "e => e.map(x => x.getAttribute('data-seg') + ':' + x.getAttribute('stroke'))")
