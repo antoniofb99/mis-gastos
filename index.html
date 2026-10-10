@@ -22,7 +22,8 @@
 html{padding-top:env(safe-area-inset-top,0px);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 body{margin:0}
 /* El cuerpo llena siempre la pantalla. */
-html{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;background:var(--bg)}
+html{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;background:var(--bg);
+  --sab:calc(env(safe-area-inset-bottom,0px) * .4)}   /* bajo el menú, menos de la mitad del margen que reserva el iPhone: entero quedaba un hueco grande bajo los iconos */
 body{flex:1 0 auto;min-width:0}
 /* Fallo de iOS (WebKit 301994): a veces la app instalada recibe menos alto que la pantalla y el menú se queda
    flotando sobre una franja vacía. Cuando la página mide lo que la pantalla entera (--pantalla, lo pone el script),
@@ -232,8 +233,8 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .btn[disabled]{opacity:.5;cursor:default}
 
 /* Navegación inferior */
-.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(72px + env(safe-area-inset-bottom,0px));background:var(--accent-f);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
-.tabs{position:fixed;z-index:6;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:env(safe-area-inset-bottom,0px)}
+.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(72px + var(--sab));background:var(--accent-f);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
+.tabs{position:fixed;z-index:6;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:var(--sab)}
 .tabs div{max-width:540px;margin-inline:auto;display:flex;justify-content:space-between;padding:6px 4px 4px}
 .tabs button{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 1px 3px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;color:var(--muted)}
 .tabs svg{display:block;width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -268,7 +269,7 @@ dialog.hoja::backdrop{background:var(--shade)}
 .tirar.girando{opacity:1;transform:translateY(0)}
 .tirar.girando svg{animation:gira-t .8s linear infinite}
 @keyframes gira-t{to{transform:rotate(360deg)}}
-.toast{position:fixed;z-index:20;left:50%;bottom:calc(128px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:99px;padding:9px 16px;font-size:13.5px;font-weight:600;max-width:calc(100% - 32px);text-align:center}
+.toast{position:fixed;z-index:20;left:50%;bottom:calc(128px + var(--sab));transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:99px;padding:9px 16px;font-size:13.5px;font-weight:600;max-width:calc(100% - 32px);text-align:center}
 /* Pantalla para conectar el dispositivo */
 .entrada{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 20px;overflow:auto}
 .entrada form{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
@@ -1807,7 +1808,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-10.2343';
+  var VERSION = '2026-10-10.2349';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
