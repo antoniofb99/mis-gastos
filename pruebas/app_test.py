@@ -79,12 +79,12 @@ async def main():
             cs = [x for x in bd["cuentas"] if x["id"] == "banco-santander"][0]; cs.update(saldo=143.0, fechaSaldo=corte, terminaEn="0061")
             bd["gastos"].append({"id": "gb1", "fecha": t1, "comercio": "Sin identificar", "importe": 1, "tarjeta": "", "categoria": "", "origen": "Banco", "cuenta": "banco-santander", "tipo": "ingreso", "destino": ""})
             bd["gastos"].append({"id": "gb2", "fecha": t2, "comercio": "Sin identificar", "importe": 2.01, "tarjeta": "", "categoria": "Otros", "origen": "Banco", "cuenta": "banco-santander", "tipo": "gasto", "destino": ""})
-            await pg.click('[data-tab="resumen"]'); antes = await pg.inner_text("#v-resumen .total")
+            await pg.click('[data-tab="resumen"]'); antes = await pg.inner_text("#v-resumen .rosco .cifra")
             await pg.click('[data-tab="cuentas"]'); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(400)
             s = await sal(); dudas = await pg.eval_on_selector_all("#v-cuentas .sec .mov", "e=>e.map(x=>x.querySelector('.m-n').textContent+' '+x.querySelector('.m-i').textContent)")
             await pg.click('#v-cuentas [data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); det = await pg.inner_text("#c-info"); await pg.click("#hc-cerrar")
             ok(s[0] == "Banco Santander=143,00\u00a0€" and dudas == ["Sin identificar 2,01\u00a0€", "Sin identificar +1,00\u00a0€"] and "Saldo según tu banco" in det, "aviso del banco: saldo del banco y dos movimientos por identificar (%s | %s)" % (s[0], dudas))
-            await pg.click('[data-tab="resumen"]'); despues = await pg.inner_text("#v-resumen .total"); lineas = await pg.inner_text("#v-resumen .lineas")
+            await pg.click('[data-tab="resumen"]'); despues = await pg.inner_text("#v-resumen .rosco .cifra"); lineas = await pg.inner_text("#v-resumen .lineas")
             num = lambda x: float(x.replace("\u00a0€", "").replace(".", "").replace(",", "."))
             ok(abs(num(despues) - num(antes) - 2.01) < 0.001 and "Ingresos del mes" in lineas and "+1,00" in lineas, "el gasto sin identificar cuenta en el mes y el ingreso no (%s -> %s)" % (antes, despues))
             await pg.click('[data-tab="cuentas"]'); await pg.click('[data-gasto="gb2"]'); await pg.wait_for_timeout(200)
@@ -104,20 +104,20 @@ async def main():
             await pg.click('#v-cuentas [data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); sinrol = await pg.is_hidden("#c-rol-grupo"); await pg.click("#hc-cerrar")
             ok(await pg.is_hidden('[data-tab="ahorro"]') and await pg.locator(".tabs button:visible").count() == 4 and sinrol, "servidor antiguo: sin pestaña Ahorro ni papeles hasta que se actualice")
             # --- gráfico circular de Cuentas ---
-            centro = lambda: pg.eval_on_selector(".rosco .centro", "e => [...e.children].map(x => x.textContent)")
-            segs = await pg.eval_on_selector_all(".rosco .seg", "e => e.map(x => x.getAttribute('data-seg') + ':' + x.getAttribute('stroke'))")
+            centro = lambda: pg.eval_on_selector("#v-cuentas .rosco .centro", "e => [...e.children].map(x => x.textContent)")
+            segs = await pg.eval_on_selector_all("#v-cuentas .rosco .seg", "e => e.map(x => x.getAttribute('data-seg') + ':' + x.getAttribute('stroke'))")
             c0 = await centro(); puntos = await pg.eval_on_selector_all(".cuenta .punto", "e => e.map(x => x.style.background)")
             filas_simples = await pg.eval_on_selector_all(".cuenta", "e => e.every(x => x.children.length === 3 && !x.querySelector('.det'))")
             ok(segs == ["banco-santander:var(--s1)", "tarjeta-comida:var(--s2)"] and c0 == ["Saldo total", "343,55\u00a0€", "2 cuentas"] and puntos == ["var(--s1)", "var(--s2)"] and filas_simples, "gráfico: un trozo por cuenta, el total en el centro y filas solo con nombre y saldo (%s | %s)" % (segs, c0))
             async def tocar(seg):   # un toque de verdad en mitad del arco
-                x, y = await pg.eval_on_selector('.toque[data-seg="%s"]' % seg, """e => { const d = e.getAttribute('stroke-dasharray').split(' ').map(Number), o = -Number(e.getAttribute('stroke-dashoffset'));
+                x, y = await pg.eval_on_selector('#v-cuentas .toque[data-seg="%s"]' % seg, """e => { const d = e.getAttribute('stroke-dasharray').split(' ').map(Number), o = -Number(e.getAttribute('stroke-dashoffset'));
                     const p = e.getPointAtLength((o + d[0] / 2) % e.getTotalLength()), m = e.getScreenCTM(); return [p.x * m.a + p.y * m.c + m.e, p.x * m.b + p.y * m.d + m.f]; }""")
                 await pg.mouse.click(x, y); await pg.wait_for_timeout(100)
-            await tocar("tarjeta-comida"); c1 = await centro(); ap = await pg.eval_on_selector_all(".rosco .seg.apagado", "e => e.map(x => x.getAttribute('data-seg'))"); marc = await pg.eval_on_selector_all(".cuenta.marcada .nombre", "e => e.map(x => x.textContent)")
+            await tocar("tarjeta-comida"); c1 = await centro(); ap = await pg.eval_on_selector_all("#v-cuentas .rosco .seg.apagado", "e => e.map(x => x.getAttribute('data-seg'))"); marc = await pg.eval_on_selector_all(".cuenta.marcada .nombre", "e => e.map(x => x.textContent)")
             await tocar("banco-santander"); c2 = await centro()
             await tocar("banco-santander"); c3 = await centro()
             ok(c1 == ["Tarjeta comida (Restaurante)", "200,55\u00a0€", "58 % del total"] and ap == ["banco-santander"] and marc == ["Tarjeta comida (Restaurante)"] and c2[0] == "Banco Santander" and c2[2] == "42 % del total" and c3 == c0, "gráfico: tocar un trozo enseña esa cuenta y su parte; tocarlo otra vez vuelve al total (%s | %s)" % (c1, c2))
-            cabe = await pg.evaluate("(() => { const c = document.querySelector('.rosco .cifra').getBoundingClientRect(), r = document.querySelector('.rosco').getBoundingClientRect(); return c.width < r.width * 0.70; })()")
+            cabe = await pg.evaluate("(() => { const c = document.querySelector('#v-cuentas .rosco .cifra').getBoundingClientRect(), r = document.querySelector('#v-cuentas .rosco').getBoundingClientRect(); return c.width < r.width * 0.70; })()")
             ok(cabe, "gráfico: la cifra cabe dentro del círculo")
             # --- la hoja responde "ok" pero sin datos (la respuesta del webhook): no se pierde lo que había
             antes_raro = await sal(); raro["v"] = {"ok": True, "mensaje": "Webhook de gastos activo"}
@@ -158,10 +158,10 @@ async def main():
             # --- el ojo: difumina los importes y se recuerda
             filtro = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).filter")
             logos = await pg.eval_on_selector_all(".cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : 'letras'))")
-            f0 = [await filtro(".cuenta .saldo"), await filtro(".rosco .cifra"), await pg.get_attribute("#ojo", "aria-pressed")]
-            await pg.click("#ojo"); f1 = [await filtro(".cuenta .saldo"), await filtro(".rosco .cifra"), await filtro(".cuenta .nombre"), await pg.get_attribute("#ojo", "aria-pressed"), await pg.get_attribute("#ojo", "aria-label")]
+            f0 = [await filtro(".cuenta .saldo"), await filtro("#v-cuentas .rosco .cifra"), await pg.get_attribute("#ojo", "aria-pressed")]
+            await pg.click("#ojo"); f1 = [await filtro(".cuenta .saldo"), await filtro("#v-cuentas .rosco .cifra"), await filtro(".cuenta .nombre"), await pg.get_attribute("#ojo", "aria-pressed"), await pg.get_attribute("#ojo", "aria-label")]
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-ojo.png")
-            await pg.click('[data-tab="movimientos"]'); f2 = await filtro(".mov .m-i"); await pg.click('[data-tab="resumen"]'); f3 = [await filtro("#v-resumen .total"), await pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")]; tit = [await pg.evaluate("document.querySelector('#mes-txt').getClientRects().length"), (await pg.inner_text("#mes-sub")).lower(), await pg.inner_text("#mes-txt")]
+            await pg.click('[data-tab="movimientos"]'); f2 = await filtro(".mov .m-i"); await pg.click('[data-tab="resumen"]'); f3 = [await filtro("#v-resumen .rosco .cifra"), await pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")]; tit = [await pg.evaluate("document.querySelector('#mes-txt').getClientRects().length"), (await pg.inner_text("#mes-sub")).lower(), await pg.inner_text("#mes-txt")]
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-ojo-resumen.png")
             await pg.reload(); await pg.wait_for_timeout(500); f4 = [await filtro(".cuenta .saldo"), await pg.get_attribute("#ojo", "aria-pressed")]
             await pg.click("#ojo"); f5 = [await filtro(".cuenta .saldo"), await pg.get_attribute("#ojo", "aria-pressed"), await pg.evaluate("localStorage.getItem('mg-oculto')")]

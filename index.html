@@ -135,15 +135,28 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .bar.grande>i{border-radius:7px}
 .pie{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
 
-.cats{display:flex;flex-direction:column;gap:16px}
-.cat{display:flex;flex-direction:column;gap:7px}
-.cat .fila{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.cat .nombre{font-weight:600;min-width:0}
-.cat .cifras{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:13.5px;color:var(--muted)}
-.cat .cifras strong{color:var(--ink);font-weight:500}
+.cats{display:flex;flex-direction:column;gap:10px}
+.cat{display:flex;flex-direction:column;gap:10px;width:100%;text-align:left;background:var(--paper);border-radius:16px;padding:12px 16px 14px 12px}
+.cat .fila{display:flex;align-items:center;gap:12px}
+.cat .ico{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--track);color:var(--ink)}
+.cat .ico.color{color:#1F1E2E}
+.cat .ico svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cat .nombre{flex:1;min-width:0;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat .cifras{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.cat .cifras strong{color:var(--ink);font-weight:500;font-size:16.5px;letter-spacing:-.02em}
+.cat.marcada{box-shadow:inset 0 0 0 2px var(--ink)}
+/* Datos del mes y listas dentro de una tarjeta, como las cuentas de Inicio */
+.datos{background:var(--paper);border-radius:16px;padding:4px 16px}
+.datos .lineas{border-top:0;padding-top:0;gap:0}
+.datos .linea{padding:11px 0}
+.datos .linea+.linea{border-top:1px solid var(--rule)}
+.datos .linea>i{border:0;transform:none}
+.movs.caja{background:var(--paper);border-radius:16px;padding:2px 16px}
+.movs.caja .mov:last-child{border-bottom:0}
+.reparto .pie{align-items:center}
 
 /* Gráfico */
-.graf{background:var(--paper);border-radius:10px;padding:12px 10px 8px}
+.graf{background:var(--paper);border-radius:16px;padding:12px 10px 8px}
 .graf svg{display:block;width:100%;height:auto}
 .graf .eje{stroke:var(--rule);stroke-width:1}
 .graf .tope{stroke:var(--muted);stroke-width:1;stroke-dasharray:2 4;fill:none}
@@ -235,12 +248,13 @@ button{cursor:pointer;background:none;border:0;padding:0}
 /* Navegación inferior */
 .fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(72px + var(--sab));background:var(--accent-f);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
 .tabs{position:fixed;z-index:6;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:var(--sab)}
-.tabs div{max-width:540px;margin-inline:auto;display:flex;justify-content:space-between;padding:6px 4px 4px}
-.tabs button{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 1px 3px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;color:var(--muted)}
+.tabs div{max-width:540px;margin-inline:auto;display:flex;justify-content:space-between;padding:6px 14px 4px}
+.tabs button{flex:0 1 auto;min-width:40px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 1px 3px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;color:var(--muted)}
 .tabs svg{display:block;width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tabs button[aria-current="page"]{color:var(--ink);font-weight:800}
 .tabs button[aria-current="page"] svg{stroke-width:2.3}
 @media (min-width:430px){.tabs button{font-size:11px;letter-spacing:-.01em}}
+@media (max-width:350px){.tabs div{padding-inline:4px}.tabs button{min-width:0}}
 
 /* Hoja para añadir o editar */
 dialog.hoja{border:0;padding:0;margin:auto auto 0;width:100%;max-width:540px;max-height:92%;background:var(--paper);color:var(--ink);border-radius:20px 20px 0 0;overflow:auto}
@@ -868,6 +882,25 @@ dialog.candado::backdrop{background:var(--bg)}
     return o + '</svg>';
   }
 
+  /* Icono de cada categoría, por palabras de su nombre; si ninguna encaja, una etiqueta. */
+  var ICONOS = [
+    ['super|mercado|aliment', '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>'],
+    ['restaur|comida|bar|cafe', '<path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>'],
+    ['gasolin|combust|carbur', '<path d="M3 22h12"/><path d="M4 9h10"/><path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/><path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 4 0V9.83a2 2 0 0 0-.59-1.42L18 5"/>'],
+    ['transp|coche|taxi|tren|bus', '<path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2s-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/>'],
+    ['compra|ropa|tienda', '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>'],
+    ['ocio|cine|fiesta|viaje', '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>'],
+    ['salud|farmac|medic|gimnas', '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>'],
+    ['alquil|casa|hogar|vivienda|hipotec', '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
+    ['conjunta|pareja', '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'],
+    ['otros|otras|varios', '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>']
+  ];
+  var ICONO_ETIQUETA = '<path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><path d="M7.5 7.5h.01"/>';
+  function iconoCat(nombre, color) {
+    var n = norm(nombre), i = ICONOS.find(function (x) { return x[0].split('|').some(function (k) { return n.indexOf(k) > -1; }); });
+    return '<span class="ico' + (color ? ' color' : '') + '" aria-hidden="true"' + (color ? ' style="background:' + color + '"' : '') + '><svg viewBox="0 0 24 24">' + (i ? i[1] : ICONO_ETIQUETA) + '</svg></span>';
+  }
+
   /* ---------- vistas ---------- */
   function vistaCargando(txt) { return '<div class="vacio"><strong>' + esc(txt) + '</strong></div>'; }
 
@@ -877,15 +910,24 @@ dialog.candado::backdrop{background:var(--bg)}
     if (!S.listoG || !S.listoP) { el.innerHTML = vistaCargando('Cargando tus gastos…'); return; }
 
     var est = estadoDe(D.total, D.limiteTotal, r), queda = D.limiteTotal - D.total;
-    var h = '<div class="ticket">';
-    h += '<div class="eyebrow"><span>Gastado en ' + esc(mes) + '</span><span>' +
-      (r.estado === 'actual' ? 'Día ' + r.dia + ' de ' + r.n : r.estado === 'pasado' ? 'Mes cerrado' : 'Aún no ha empezado') + '</span></div>';
-    h += '<div class="total">' + esc(eur(D.total)) + '</div>';
-    if (D.limiteTotal > 0) {
-      h += '<div>' + barra(D.total, D.limiteTotal, r, true) + '</div>';
-      h += '<div class="pie"><span>' + Math.round(D.total / D.limiteTotal * 100) + ' % de ' + esc(eur0(D.limiteTotal)) + '</span><span class="pill ' + est.k + '">' + esc(est.txt) + '</span></div>';
-    }
-    h += '<div class="lineas">';
+    // El gasto por categoría, con el mismo gráfico que Inicio. El color va con la categoría (por su orden entre las que tienen gasto).
+    var segs = [], color = {}, otras = 0, k = 0;
+    D.cats.forEach(function (c) {
+      if (!(c.gastado > 0)) return;
+      if (k < ROSCO_MAX) { color[c.nombre] = 'var(--s' + (k + 1) + ')'; segs.push({ id: c.nombre, nombre: c.nombre, v: c.gastado, color: color[c.nombre] }); }
+      else { color[c.nombre] = 'var(--s-otras)'; otras += c.gastado; }
+      k++;
+    });
+    if (otras > 0) segs.push({ id: '_otras', nombre: 'Otras categorías', v: otras, color: 'var(--s-otras)' });
+    if (S.catSel && !segs.some(function (x) { return x.id === S.catSel; })) S.catSel = null;
+    var dia = r.estado === 'actual' ? 'Día ' + r.dia + ' de ' + r.n : r.estado === 'pasado' ? 'Mes cerrado' : 'Aún no ha empezado';
+    var h = '<section class="reparto">' + dona(segs, { sel: S.catSel, total: D.total, rotulo: 'Gastado',
+      sub: D.limiteTotal > 0 ? Math.round(D.total / D.limiteTotal * 100) + ' % de ' + eur0(D.limiteTotal) : D.gastos.length + (D.gastos.length === 1 ? ' gasto' : ' gastos'),
+      que: 'Gasto de ' + mes + ' por categoría', vacio: 'sin gastos' });
+    if (D.limiteTotal > 0) h += '<div>' + barra(D.total, D.limiteTotal, r, true) + '</div>';
+    h += '<div class="pie"><span>' + esc(dia) + '</span>' + (D.limiteTotal > 0 ? '<span class="pill ' + est.k + '">' + esc(est.txt) + '</span>' : '') + '</div></section>';
+
+    h += '<div class="datos"><div class="lineas">';
     h += linea('Presupuesto del mes', D.limiteTotal > 0 ? eur(D.limiteTotal) : 'Sin definir');
     h += linea(D.gastos.length + (D.gastos.length === 1 ? ' gasto' : ' gastos'), eur(D.total));
     if (D.ingresos > 0) h += linea('Ingresos del mes', '+' + eur(D.ingresos));
@@ -895,30 +937,31 @@ dialog.candado::backdrop{background:var(--bg)}
     }
     h += '</div></div>';
 
+    h += '<section class="sec"><header><h2>Por categoría</h2><button class="enlace" type="button" data-ir="presupuestos">Cambiar límites</button></header>';
+    if (r.estado === 'actual' && D.limiteTotal > 0) h += '<p class="nota">La marca vertical señala por dónde deberías ir hoy.</p>';
+    if (!D.cats.length) h += '<div class="vacio"><strong>Aún no hay presupuestos</strong>Crea el primero en la pestaña Presupuestos.</div>';
+    h += '<div class="cats">';
+    D.cats.forEach(function (c) {
+      var e = estadoDe(c.gastado, c.limite, r), col = color[c.nombre];
+      h += '<button class="cat' + (S.catSel === c.nombre || (S.catSel === '_otras' && col === 'var(--s-otras)') ? ' marcada' : '') + '" type="button" data-cat="' + esc(c.nombre) + '"><span class="fila">' + iconoCat(c.nombre, col) +
+        '<span class="nombre">' + esc(c.nombre) + '</span>' +
+        '<span class="cifras"><strong>' + esc(eur(c.gastado)) + '</strong>' + (c.limite > 0 ? '<span>de ' + esc(eur0(c.limite)) + '</span>' : '') + '</span></span>' +
+        (c.limite > 0 ? barra(c.gastado, c.limite, r, false).replace(/^<div /, '<span style="display:block" ').replace(/<\/div>$/, '</span>') : '') +
+        (e.k === 'ok' || e.k === 'none' ? '' : '<span><span class="pill ' + e.k + '">' + esc(e.txt) + '</span></span>') + '</button>';
+    });
+    h += '</div></section>';
+
     var g = grafico(D);
     if (g) {
       h += '<section class="sec"><header><h2>Ritmo del mes</h2></header><div class="graf">' + g +
         '<div class="leyenda"><span>Lo que llevas gastado</span>' + (D.limiteTotal > 0 ? '<span class="i">Ritmo para no pasarte</span>' : '') + '</div></div></section>';
     }
 
-    h += '<section class="sec"><header><h2>Por categoría</h2><button class="enlace" type="button" data-ir="presupuestos">Cambiar límites</button></header>';
-    if (r.estado === 'actual' && D.limiteTotal > 0) h += '<p class="nota">La marca vertical señala por dónde deberías ir hoy.</p>';
-    if (!D.cats.length) h += '<div class="vacio"><strong>Aún no hay presupuestos</strong>Crea el primero en la pestaña Presupuestos.</div>';
-    h += '<div class="cats">';
-    D.cats.forEach(function (c) {
-      var e = estadoDe(c.gastado, c.limite, r);
-      h += '<div class="cat"><div class="fila"><span class="nombre">' + esc(c.nombre) + '</span>' +
-        '<span class="cifras"><strong>' + esc(eur(c.gastado)) + '</strong>' + (c.limite > 0 ? ' de ' + esc(eur0(c.limite)) : '') + '</span></div>' +
-        barra(c.gastado, c.limite, r, false) +
-        (e.k === 'ok' ? '' : '<div><span class="pill ' + e.k + '">' + esc(e.txt) + '</span></div>') + '</div>';
-    });
-    h += '</div></section>';
-
     h += '<section class="sec"><header><h2>Últimos movimientos</h2>' + (D.movs.length > 5 ? '<button class="enlace" type="button" data-ir="movimientos">Ver los ' + D.movs.length + '</button>' : '') + '</header>';
     if (!D.movs.length) {
       h += '<div class="vacio"><strong>Sin movimientos en ' + esc(nombreMes(S.mes)) + '</strong>Añade uno con el botón de abajo. Los pagos con Apple Pay aparecen aquí solos.</div>';
     } else {
-      h += '<div class="movs">' + D.movs.slice(0, 5).map(filaMov).join('') + '</div>';
+      h += '<div class="movs caja">' + D.movs.slice(0, 5).map(filaMov).join('') + '</div>';
     }
     h += '</section>';
     el.innerHTML = h;
@@ -992,18 +1035,12 @@ dialog.candado::backdrop{background:var(--bg)}
   /* Gráfico circular del reparto del saldo. Solo entran las cuentas con saldo positivo;
      el color va con la cuenta (por su orden) y a partir de la séptima se agrupan en "Otras". */
   var ROSCO_MAX = 6;
-  function rosco(filas, total, sinInv) {
-    var RAD = 82, ANCHO = 18, LARGO = 2 * Math.PI * RAD, HUECO = 2.2, segs = [], color = {}, otras = 0;
-    filas.forEach(function (f, i) {
-      var v = tieneSaldo(f.c) ? f.s.saldo : 0;
-      if (!(v > 0)) return;
-      if (i < ROSCO_MAX) { color[f.c.id] = 'var(--s' + (i + 1) + ')'; segs.push({ id: f.c.id, nombre: f.c.nombre, v: v, color: color[f.c.id] }); }
-      else { color[f.c.id] = 'var(--s-otras)'; otras += v; }
-    });
-    if (otras > 0) segs.push({ id: '_otras', nombre: 'Otras cuentas', v: otras, color: 'var(--s-otras)' });
+  /* Gráfico circular: trozos {id, nombre, v, color}; en el centro, un rótulo, la cifra y una línea.
+     Al tocar un trozo (o.sel) el centro enseña ese trozo y su parte. */
+  function dona(segs, o) {
+    var RAD = 82, ANCHO = 18, LARGO = 2 * Math.PI * RAD, HUECO = 2.2;
     var suma = segs.reduce(function (a, x) { return a + x.v; }, 0);
-    if (S.segSel && !segs.some(function (x) { return x.id === S.segSel; })) S.segSel = null;
-    var sel = S.segSel ? segs.find(function (x) { return x.id === S.segSel; }) : null;
+    var sel = o.sel ? segs.find(function (x) { return x.id === o.sel; }) : null;
     var pct = function (v) { var p = v / suma * 100; return (p < 1 ? '<1' : String(Math.round(p))) + ' %'; };
     var arcos = '', toques = '', pos = 0;
     segs.forEach(function (x) {
@@ -1015,15 +1052,29 @@ dialog.candado::backdrop{background:var(--bg)}
         '" stroke-dashoffset="' + (-pos).toFixed(2) + '"><title>' + esc(x.nombre + ': ' + eur(x.v) + ' (' + pct(x.v) + ')') + '</title></circle>';
       pos += largo;
     });
-    var cifra = eur(sel ? sel.v : total), cuerpo = Math.max(15, Math.min(30, Math.floor(160 / (cifra.length * 0.61))));
-    var n = filas.length, alt = 'Reparto del saldo: ' + (segs.length ? segs.map(function (x) { return x.nombre + ' ' + eur(x.v) + ' (' + pct(x.v) + ')'; }).join(', ') : 'sin saldo que repartir') + '.';
-    var html = '<div class="rosco"><svg viewBox="0 0 200 200" role="img" aria-label="' + esc(alt) + '">' +
+    var cifra = eur(sel ? sel.v : o.total), cuerpo = Math.max(15, Math.min(30, Math.floor(160 / (cifra.length * 0.61))));
+    var alt = o.que + ': ' + (segs.length ? segs.map(function (x) { return x.nombre + ' ' + eur(x.v) + ' (' + pct(x.v) + ')'; }).join(', ') : o.vacio) + '.';
+    return '<div class="rosco"><svg viewBox="0 0 200 200" role="img" aria-label="' + esc(alt) + '">' +
       (segs.length ? '' : '<circle cx="100" cy="100" r="' + RAD + '" fill="none" stroke="var(--track)" stroke-width="' + ANCHO + '"/>') +
       '<g transform="rotate(-90 100 100)">' + arcos + toques + '</g></svg>' +
-      '<div class="centro"><div class="eyebrow">' + esc(sel ? sel.nombre : 'Saldo total') + '</div>' +
-      '<div class="cifra' + (!sel && total < 0 ? ' neg' : '') + '" style="font-size:' + cuerpo + 'px">' + esc(cifra) + '</div>' +
-      '<div class="sub">' + (sel ? pct(sel.v) + ' del total' : sinInv ? 'Sin inversiones' : n + (n === 1 ? ' cuenta' : ' cuentas')) + '</div></div></div>';
-    return { html: html, color: color };
+      '<div class="centro"><div class="eyebrow">' + esc(sel ? sel.nombre : o.rotulo) + '</div>' +
+      '<div class="cifra' + (!sel && o.total < 0 ? ' neg' : '') + '" style="font-size:' + cuerpo + 'px">' + esc(cifra) + '</div>' +
+      '<div class="sub">' + esc(sel ? pct(sel.v) + ' del total' : o.sub) + '</div></div></div>';
+  }
+  /* Reparto del saldo entre cuentas. Solo entran las de saldo positivo; el color va con la cuenta
+     (por su orden) y a partir de la séptima se agrupan en "Otras". */
+  function rosco(filas, total, sinInv) {
+    var segs = [], color = {}, otras = 0;
+    filas.forEach(function (f, i) {
+      var v = tieneSaldo(f.c) ? f.s.saldo : 0;
+      if (!(v > 0)) return;
+      if (i < ROSCO_MAX) { color[f.c.id] = 'var(--s' + (i + 1) + ')'; segs.push({ id: f.c.id, nombre: f.c.nombre, v: v, color: color[f.c.id] }); }
+      else { color[f.c.id] = 'var(--s-otras)'; otras += v; }
+    });
+    if (otras > 0) segs.push({ id: '_otras', nombre: 'Otras cuentas', v: otras, color: 'var(--s-otras)' });
+    if (S.segSel && !segs.some(function (x) { return x.id === S.segSel; })) S.segSel = null;
+    var n = filas.length;
+    return { color: color, html: dona(segs, { sel: S.segSel, total: total, rotulo: 'Saldo total', sub: sinInv ? 'Sin inversiones' : n + (n === 1 ? ' cuenta' : ' cuentas'), que: 'Reparto del saldo', vacio: 'sin saldo que repartir' }) };
   }
 
   function pintarCuentas() {
@@ -1662,9 +1713,15 @@ dialog.candado::backdrop{background:var(--bg)}
     S.segSel = id && id !== S.segSel ? id : null;
     pintarCuentas();
   });
+  $('#v-resumen').addEventListener('click', function (e) {
+    if (!e.target.closest('.rosco')) return;
+    var t = e.target.closest('[data-seg]'), id = t ? t.getAttribute('data-seg') : null;
+    S.catSel = id && id !== S.catSel ? id : null;
+    pintar();
+  });
   document.querySelector('.tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) irA(b.dataset.tab); });
   document.querySelector('main').addEventListener('click', function (e) {
-    var t = e.target.closest('[data-gasto],[data-ir],[data-filtro],[data-quitar],[data-cuenta],[data-nueva-cuenta]');
+    var t = e.target.closest('[data-gasto],[data-ir],[data-filtro],[data-quitar],[data-cuenta],[data-nueva-cuenta],[data-cat]');
     if (!t) return;
     if (t.dataset.gasto !== undefined) { var g = S.todos.find(function (x) { return x.id === t.dataset.gasto; }); if (g) abrirHoja(g); }
     else if (t.dataset.ir) irA(t.dataset.ir);
@@ -1672,6 +1729,7 @@ dialog.candado::backdrop{background:var(--bg)}
     else if (t.dataset.quitar) quitarCategoria(t);
     else if (t.dataset.cuenta) { var c = S.cuentas.find(function (x) { return x.id === t.dataset.cuenta; }); if (c) abrirCuenta(c); }
     else if (t.dataset.nuevaCuenta !== undefined) abrirCuenta(null);
+    else if (t.dataset.cat !== undefined) { S.filtro = t.dataset.cat; irA('movimientos'); }   // de una categoría, a sus movimientos
   });
   $('#v-ahorro').addEventListener('click', async function (e) {
     var t = e.target.closest('[data-mes],[data-papel],[data-papeles]');
@@ -1808,7 +1866,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-10.2349';
+  var VERSION = '2026-10-10.2358';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo

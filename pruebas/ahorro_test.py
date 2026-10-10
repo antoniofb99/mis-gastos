@@ -86,7 +86,7 @@ async def main():
             sal.append("MyInvestor=" + await pg.eval_on_selector('#v-patrimonio .obj[data-cuenta="mi"] .cifra', "e => e.textContent"))   # las inversiones ya no salen en Inicio
             ok(sal == ["Banco Santander=2.010,00 €", "Revolut (Conjunta)=670,00 €", "Trade Republic=4.300,00 €", "MyInvestor=9.200,00 €"], "traspaso: resta de una cuenta y suma en la otra (%s)" % sal)
             # --- la conjunta: cuenta lo que aportas, no lo que se paga desde ella
-            await pg.click('[data-tab="resumen"]'); tot = await pg.inner_text("#v-resumen .total"); cats = await pg.inner_text("#v-resumen .cats"); lin = await pg.inner_text("#v-resumen .lineas")
+            await pg.click('[data-tab="resumen"]'); tot = await pg.inner_text("#v-resumen .rosco .cifra"); cats = await pg.inner_text("#v-resumen .cats"); lin = await pg.inner_text("#v-resumen .lineas")
             ok(tot == "490,00 €" and "Cuenta conjunta" in cats and "400,00" in cats and "Supermercado\n0,00" in cats.replace(" €", "").replace(" de 350", "") and "+2.000,00" in lin, "conjunta: tu gasto es la aportación (400) y el pago hecho con Revolut no cuenta (%s)" % tot)
             await pg.click('[data-tab="movimientos"]'); mm = await pg.inner_text("#v-movimientos")
             await pg.click('[data-filtro="Cuenta conjunta"]'); mf = await pg.eval_on_selector_all("#v-movimientos .mov .m-n", "e => e.map(x => x.textContent)")
@@ -128,7 +128,7 @@ async def main():
             await pg.click('#v-patrimonio .fila-c[data-cuenta="tr"]'); await pg.wait_for_timeout(200); ficha = await pg.input_value("#c-nombre"); await pg.click("#hc-cerrar")
             await pg.click('[data-tab="cuentas"]'); await pg.wait_for_timeout(150)
             ini = await pg.eval_on_selector_all("#v-cuentas .cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : x.querySelector('.logo').textContent) + ':' + x.children.length)")
-            centro = await pg.eval_on_selector(".rosco .centro", "e => [...e.children].map(x => x.textContent)"); cab = await pg.inner_text("#mes-txt")
+            centro = await pg.eval_on_selector("#v-cuentas .rosco .centro", "e => [...e.children].map(x => x.textContent)"); cab = await pg.inner_text("#mes-txt")
             ok(ficha == "Trade Republic" and ini == ["san:img:3", "rev:img:3", "tr:img:3"] and centro[0] == "Saldo total" and centro[2] == "Sin inversiones" and abs(num(centro[1]) + num(grupos[3].split("=")[1]) - tot) < 0.01 and cab == "Hola, Antonio" and await pg.is_hidden("#mes-sub")
                and await pg.locator("#v-cuentas [data-nueva-cuenta]").count() == 1, "inicio: solo las cuentas que no son de inversión, cada una con su logo, y el gráfico sin inversiones (%s | %s)" % (ini, centro))
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-inicio.png", full_page=True)
