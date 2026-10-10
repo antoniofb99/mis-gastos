@@ -439,7 +439,7 @@ dialog.candado::backdrop{background:var(--bg)}
     <div class="grupo" id="c-aportado-grupo" hidden>
       <label for="c-aportado">Aportado de tu bolsillo hasta hoy (opcional)</label>
       <input class="texto" id="c-aportado" name="aportado" inputmode="decimal" autocomplete="off" placeholder="Por ejemplo, 8000">
-      <p class="nota">Con esto la app calcula cuánto has ganado o perdido. Las aportaciones nuevas se suman solas.</p>
+      <p class="nota" id="c-aportado-nota">Con esto la app calcula cuánto has ganado o perdido. Las aportaciones nuevas se suman solas.</p>
     </div>
     <fieldset class="grupo" id="c-fondos-grupo" hidden>
       <legend>Fondos y participaciones</legend>
@@ -449,7 +449,7 @@ dialog.candado::backdrop{background:var(--bg)}
         <input class="texto" id="c-f-nombre" autocomplete="off" maxlength="40" placeholder="Nombre" aria-label="Nombre del fondo nuevo">
         <input class="texto" id="c-f-part" inputmode="decimal" autocomplete="off" placeholder="Participaciones" aria-label="Participaciones del fondo nuevo">
       </div>
-      <p class="nota">Cuando compres o vendas, pon aquí las participaciones que te salen en el bróker. Para quitar un fondo, deja sus participaciones vacías.</p>
+      <p class="nota">Las compras y ventas que tu bróker confirma por correo se suman solas. Si algún número no cuadra con el del bróker, corrígelo aquí. Para quitar un fondo, deja sus participaciones vacías.</p>
     </fieldset>
     <div class="grupo">
       <label for="c-tarjetas">Tarjetas de esta cuenta</label>
@@ -623,6 +623,7 @@ dialog.candado::backdrop{background:var(--bg)}
   /* Lo que has metido de tu bolsillo en una cuenta de inversión: lo anotado más los traspasos posteriores. */
   function aportadoDe(c) {
     if (typeof c.aportado !== 'number') return null;
+    if (S.fondos.some(function (f) { return f.cuenta === c.id; })) return c.aportado;   // con fondos lo suma el servidor con cada compra confirmada por correo
     var desde = sello(c.fechaAportado), neto = 0;
     S.todos.forEach(function (g) {
       if (tipoDe(g) !== 'traspaso' || !(sello(g.fecha) > desde)) return;
@@ -1393,6 +1394,8 @@ dialog.candado::backdrop{background:var(--bg)}
     $('#c-fondos-grupo').hidden = !(rol === 'inversion' && DB.moderno() && !!S.editCuenta);
     $('#c-saldo').disabled = conFondos;
     if (conFondos) $('#c-saldo-nota').textContent = 'Lo calcula la app: participaciones de cada fondo por su último precio.';
+    $('#c-aportado-nota').textContent = conFondos ? 'Con esto la app calcula cuánto has ganado o perdido. Se suma solo con cada compra que tu bróker confirma por correo.'
+      : 'Con esto la app calcula cuánto has ganado o perdido. Las aportaciones nuevas se suman solas.';
     return rol;
   }
   function cerrarCuenta() { var d = $('#hoja-cuenta'); if (d.close) d.close(); else d.removeAttribute('open'); S.editCuenta = null; }
@@ -1656,7 +1659,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.1610';
+  var VERSION = '2026-10-10.1624';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });

@@ -28,6 +28,8 @@ const SALDOS_MAX = 800;   // días que se devuelven a la app
 // fórmulas de la propia hoja que lean el precio y su fecha de fuera; si dan un número, pasa a ser el precio.
 const H_FONDOS = ['ISIN', 'Nombre', 'Cuenta', 'Participaciones', 'Fecha participaciones', 'Precio', 'Fecha precio', 'Lectura precio', 'Lectura fecha'];
 const FONDO_DATOS = 7;    // columnas que escribe el script; las de lectura no se tocan
+// Correos con los que el bróker confirma cada compra o venta de un fondo: de ahí salen las participaciones.
+const OPERACIONES = { remitente: 'notificaciones@myinvestor.es', asunto: 'OPERACIÓN DE VALORES' };
 
 // Avisos de saldo por correo. El texto es del tipo:
 // "te informamos de que tienes disponible 143,00 EUR en tu cuenta terminada en **0061."
@@ -77,10 +79,12 @@ function doPost(e) {
       case 'pago': return responder(apuntarPago(datos));
       case 'leer': {
         const correo = sincronizarSinRomper();
+        const operaciones = operacionesSinRomper();
         valorarSinRomper();
         fotoSinRomper();
         const todo = leerTodo();
         todo.correo = correo;
+        todo.operaciones = operaciones;
         return responder(todo);
       }
       case 'gasto.guardar': return responder(guardarGasto(datos.gasto));
@@ -338,6 +342,92 @@ function valorarFondos() {
   return cambiadas;
 }
 
+/* ------------------------------------------- compras y ventas confirmadas por correo */
+
+// Saca de un correo de confirmación el fondo, las participaciones, el precio y el importe. null si no encaja.
+function leerOperacion(texto, asunto) {
+  const t = String(texto || '').replace(/\s+/g, ' ');
+  const isin = (/ISIN:\s*([A-Z]{2}[A-Z0-9]{9}\d)/.exec(t) || [])[1];
+  const tipo = (/(SUSCRIPCION|REEMBOLSO)[^0-9]{0,40}?I\.I\.C\./.exec(t) || [])[0];
+  const n = /Importe Bruto\s+([\d.,]+)\s+([\d.,]+)\s*EUR\s+([\d.,]+)\s*EUR/.exec(t);
+  const f = /(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2})\/(\d{2})\/(\d{4})/.exec(t);
+  if (!isin || !tipo || !n || !f) return null;
+  const num = function (x) { return Number(String(x).replace(/,/g, '')); };   // vienen como 2,500.00
+  const titulos = num(n[1]), precio = num(n[2]), importe = num(n[3]);
+  if (!(titulos > 0) || !(precio > 0) || !isFinite(importe)) return null;
+  return {
+    isin: isin,
+    signo: /^REEMBOLSO/.test(tipo) ? -1 : 1,
+    traspaso: /TRASPASO/.test(tipo),          // cambio de un fondo a otro: no es dinero nuevo
+    titulos: titulos, precio: precio, importe: importe,
+    diaOperacion: f[3] + '-' + f[2] + '-' + f[1],
+    diaValor: f[6] + '-' + f[5] + '-' + f[4],
+    nombre: String(String(asunto || '').split('#')[3] || '').trim(),
+  };
+}
+
+// Aplica una operación: suma o resta participaciones, apunta el precio si es más reciente y suma lo aportado.
+// Las participaciones solo se tocan si la operación es posterior al día en que se anotaron (lo anterior ya está contado).
+function aplicarOperacion(op, t) {
+  const zona = zonaHoraria();
+  const cuando = Utilities.formatDate(new Date(t), zona, F_FECHA);
+  const f = leerFondos().filter(function (x) { return x.id === op.isin; })[0];
+  const deInversion = leerCuentas().filter(function (c) { return c.rol === 'inversion'; }).sort(function (a, b) { return (a.orden || 0) - (b.orden || 0); })[0];
+  const cuentaId = f && f.cuenta ? f.cuenta : (deInversion ? deInversion.id : '');
+  if (!cuentaId) return false;
+  const cambio = { id: op.isin };
+  if (!f) {
+    cambio.nombre = op.nombre || op.isin; cambio.cuenta = cuentaId;
+    cambio.participaciones = Math.max(0, op.signo * op.titulos); cambio.fechaParticipaciones = cuando;
+  } else if (op.diaOperacion > String(f.fechaParticipaciones || '').slice(0, 10)) {
+    cambio.participaciones = Math.max(0, Math.round(((f.participaciones || 0) + op.signo * op.titulos) * 1e7) / 1e7);
+    cambio.fechaParticipaciones = cuando;
+  }
+  if (!f || !f.fechaPrecio || op.diaValor > f.fechaPrecio) { cambio.precio = op.precio; cambio.fechaPrecio = op.diaValor; }
+  guardarFondo(cambio);
+  if (!op.traspaso) {
+    const c = leerCuentas().filter(function (x) { return x.id === cuentaId; })[0];
+    if (c && typeof c.aportado === 'number') {
+      c.aportado = Math.round((c.aportado + op.signo * op.importe) * 100) / 100;
+      c.fechaAportado = cuando;
+      guardarCuenta(c);
+    }
+  }
+  return true;
+}
+
+// Mira los correos de confirmación de los últimos días y aplica los que no se hayan visto todavía.
+// La primera vez no aplica nada: da por contado lo que ya hay en el buzón.
+function sincronizarOperaciones() {
+  const props = PropertiesService.getScriptProperties();
+  const cruda = props.getProperty('operacionesHechas');
+  let hechas = [];
+  try { hechas = JSON.parse(cruda || '[]'); } catch (err) { hechas = []; }
+  const lista = Gmail.Users.Messages.list('me', { q: 'from:' + OPERACIONES.remitente + ' subject:"' + OPERACIONES.asunto + '" newer_than:30d', maxResults: 50 });
+  const ids = (lista.messages || []).map(function (m) { return m.id; });
+  if (cruda === null) {
+    props.setProperty('operacionesHechas', JSON.stringify(ids));
+    return { ok: true, nuevas: 0, aplicadas: 0, inicio: true };
+  }
+  const nuevos = ids.filter(function (id) { return hechas.indexOf(id) < 0; }).map(function (id) {
+    const c = Gmail.Users.Messages.get('me', id, { format: 'full' });
+    const cab = ((c.payload && c.payload.headers) || []).filter(function (h) { return /^subject$/i.test(h.name); })[0];
+    return { id: id, t: Number(c.internalDate), texto: textoDelCorreo(c), asunto: cab ? cab.value : '' };
+  }).sort(function (a, b) { return a.t - b.t; });
+  let aplicadas = 0;
+  nuevos.forEach(function (m) {
+    const op = leerOperacion(m.texto, m.asunto);
+    if (op && aplicarOperacion(op, m.t)) aplicadas++;
+    hechas.push(m.id);
+  });
+  if (nuevos.length) props.setProperty('operacionesHechas', JSON.stringify(hechas.slice(-300)));
+  return { ok: true, nuevas: nuevos.length, aplicadas: aplicadas };
+}
+
+function operacionesSinRomper() {
+  try { return sincronizarOperaciones(); } catch (err) { return { ok: false, error: String(err && err.message ? err.message : err) }; }
+}
+
 // Si la valoración falla, lo demás sigue funcionando.
 function valorarSinRomper() {
   try { return valorarFondos(); } catch (err) { return 0; }
@@ -418,7 +508,7 @@ function tareaCorreo() {
   const candado = LockService.getScriptLock();
   try {
     candado.waitLock(20000);
-    try { sincronizarCorreo(); } finally { valorarSinRomper(); fotoSinRomper(); }
+    try { sincronizarCorreo(); } finally { operacionesSinRomper(); valorarSinRomper(); fotoSinRomper(); }
   } finally {
     try { candado.releaseLock(); } catch (err) { /* no lo teníamos */ }
   }

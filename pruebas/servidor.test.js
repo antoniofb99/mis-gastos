@@ -35,7 +35,7 @@ const correos = []; const props = {}; const disparadores = []; let gmailRoto = f
 const b64 = t => Buffer.from(t, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
 global.Gmail = { Users: { Messages: {
   list: (yo, o) => { if (gmailRoto) throw new Error('Sin permiso para Gmail'); return { messages: correos.filter(c => o.q.indexOf(c.de) > -1).map(c => ({ id: c.id })).reverse() }; },
-  get: (yo, id) => { const c = correos.find(x => x.id === id); return { id, internalDate: String(c.t), snippet: '', payload: { mimeType: 'multipart/alternative', parts: [{ mimeType: 'text/html', body: { data: c.id === 'e2' ? b64(c.html) : Array.from(Buffer.from(c.html, 'utf8')) } }] } }; },
+  get: (yo, id) => { const c = correos.find(x => x.id === id); return { id, internalDate: String(c.t), snippet: '', payload: { mimeType: 'multipart/alternative', headers: [{ name: 'Subject', value: c.asunto || '' }], parts: [{ mimeType: 'text/html', body: { data: c.id === 'e2' ? b64(c.html) : Array.from(Buffer.from(c.html, 'utf8')) } }] } }; },
 } } };
 global.PropertiesService = { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = v; } }) };
 global.ScriptApp = { getProjectTriggers: () => disparadores.map(f => ({ getHandlerFunction: () => f })), newTrigger: f => ({ timeBased() { return this; }, everyMinutes() { return this; }, create() { disparadores.push(f); } }) };
@@ -231,5 +231,37 @@ ok(t.fondos[0].precio === 17.5 && t.fondos[0].fechaPrecio === '2026-10-09' && t.
 post({ clave: 'k', accion: 'fondo.borrar', id: 'ES0165265002' });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 1 && ct('mi').saldo === 1925, 'fondos: al quitar un fondo la cuenta se recalcula con los que quedan');
+
+// ---------------------------------------------------------------- compras confirmadas por correo
+const MI = 'notificaciones@myinvestor.es';
+const operacion = (id, t, o) => correos.push({ id, de: MI, t,
+  asunto: '** MYINVESTOR **CONFIRMACIÓN DE OPERACIÓN DE VALORES : XXXXXX3125 # ' + o.fo + ' # ' + o.tipo + ' # ' + o.nombre + ' # TIT: ' + o.tit + ' # PRE: 1.83 # ' + o.imp + ' EUR',
+  html: '<table><tr><td>DETALLE OPERACI\uFFFDN</td></tr><tr><td>Mercado</td><td>Valor</td></tr><tr><td>FONDOS ESP</td><td>' + o.nombre + ' - C\uFFFDdigo ISIN: ' + o.isin + ' Sociedad Gestora: X Entidad Depositaria:Y</td></tr>' +
+    '<tr><td>Operaci\uFFFDn</td><td>Referencia Operaci\uFFFDn</td></tr><tr><td>' + o.tipo + ' I.I.C.</td><td>158994983/1</td></tr><tr><td>Fecha Operaci\uFFFDn</td><td>Fecha Valor</td></tr><tr><td>' + o.fo + '</td><td>' + o.fv + '</td></tr>' +
+    '<tr><td>N\uFFFDmero de t\uFFFDtulos/Participaciones</td><td>Precio Bruto</td><td>Importe Bruto</td></tr><tr><td>' + o.tit + '</td><td>' + o.pre + ' EUR</td><td>' + o.imp + ' EUR</td></tr><tr><td>Comisiones</td><td>0.00 EUR</td></tr></table>' });
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: Object.assign({}, ct('mi'), { aportado: 5000, fechaAportado: '2026-10-11T09:00:00' }) });
+reloj = new Date(2026, 9, 12, 10, 0, 0).getTime();
+delete props.operacionesHechas;   // como recién desplegado
+operacion('o0', new Date(2026, 9, 8, 16, 27).getTime(), { fo: '08/10/2026', fv: '06/10/2026', tipo: 'SUSCRIPCION', nombre: 'MYINVESTOR NASDAQ 100 FI', isin: 'ES0165265002', tit: '70.8678706', pre: '1.8345408', imp: '130.01' });
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.operaciones.ok && t.operaciones.inicio === true && t.fondos.length === 1 && ct('mi').aportado === 5000, 'operaciones: la primera vez da por contados los correos que ya había (' + JSON.stringify(t.operaciones) + ')');
+operacion('o1', new Date(2026, 9, 12, 4, 19).getTime(), { fo: '09/10/2026', fv: '12/10/2026', tipo: 'SUSCRIPCION', nombre: 'S&P 500 INDEX P ACC EUR', isin: 'IE00BYX5MX67', tit: '13.473', pre: '17.0712', imp: '230.00' });
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.operaciones.nuevas === 1 && t.operaciones.aplicadas === 1 && t.fondos[0].participaciones === 110 && t.fondos[0].precio === 17.5 && ct('mi').aportado === 5230, 'operaciones: una compra anterior al día en que se anotaron las participaciones no las cambia, pero sí suma lo aportado');
+hojas.Fondos.f[1][7] = '';   // sin fórmula de precio, para ver el que trae el correo
+operacion('o2', new Date(2026, 9, 12, 9, 30).getTime(), { fo: '12/10/2026', fv: '13/10/2026', tipo: 'SUSCRIPCION', nombre: 'S&P 500 INDEX P ACC EUR', isin: 'IE00BYX5MX67', tit: '193.027', pre: '12.9515', imp: '2,500.00' });
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos[0].participaciones === 303.027 && t.fondos[0].fechaParticipaciones === '2026-10-12T09:30:00' && t.fondos[0].precio === 12.9515 && t.fondos[0].fechaPrecio === '2026-10-13' && ct('mi').aportado === 7730 && ct('mi').fechaAportado === '2026-10-12T09:30:00' && ct('mi').saldo === Math.round(303.027 * 12.9515 * 100) / 100 && ct('mi').fechaSaldo === '2026-10-12T09:30:00', 'operaciones: una compra nueva suma participaciones, precio y aportado (lee 2,500.00) y la cuenta se recalcula');
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.operaciones.nuevas === 0 && t.fondos[0].participaciones === 303.027 && ct('mi').aportado === 7730, 'operaciones: repetir no duplica');
+reloj = new Date(2026, 9, 14, 10, 0, 0).getTime();
+operacion('o3', new Date(2026, 9, 14, 8, 0).getTime(), { fo: '14/10/2026', fv: '15/10/2026', tipo: 'REEMBOLSO', nombre: 'S&P 500 INDEX P ACC EUR', isin: 'IE00BYX5MX67', tit: '3.027', pre: '13.00', imp: '39.35' });
+operacion('o4', new Date(2026, 9, 14, 8, 5).getTime(), { fo: '14/10/2026', fv: '14/10/2026', tipo: 'SUSCRIPCION', nombre: 'VANGUARD GLOBAL STOCK', isin: 'IE00B03HCZ61', tit: '2.5', pre: '40.00', imp: '100.00' });
+correos.push({ id: 'o5', de: MI, t: new Date(2026, 9, 14, 8, 6).getTime(), asunto: 'Otra cosa', html: '<p>Tu extracto mensual</p>' });
+t = post({ clave: 'k', accion: 'leer' });
+const nuevoFondo = t.fondos.find(q => q.id === 'IE00B03HCZ61');
+ok(t.operaciones.nuevas === 3 && t.operaciones.aplicadas === 2 && t.fondos[0].participaciones === 300 && t.fondos[0].precio === 13 && nuevoFondo && nuevoFondo.cuenta === 'mi' && nuevoFondo.nombre === 'VANGUARD GLOBAL STOCK' && nuevoFondo.participaciones === 2.5 && nuevoFondo.precio === 40 && ct('mi').aportado === 7790.65 && ct('mi').saldo === 4000, 'operaciones: un reembolso resta, un fondo nuevo se crea solo y un correo que no es una operación se ignora');
+gmailRoto = true; t = post({ clave: 'k', accion: 'leer' }); gmailRoto = false;
+ok(t.ok && t.operaciones.ok === false && t.fondos.length === 2, 'operaciones: si falla Gmail, la app sigue funcionando');
 Date.now = realNow;
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

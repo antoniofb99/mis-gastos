@@ -134,8 +134,11 @@ async def main():
             bd["fondos"] = [dict(id="IE00BYX5MX67", nombre="Fidelity S&P 500 Index EUR P Acc", cuenta="mi", participaciones=422.02, fechaParticipaciones=HOY + "T00:10:00", precio=17.13, fechaPrecio=M0 + "-08"),
                             dict(id="ES0165265002", nombre="MyInvestor Nasdaq 100", cuenta="mi", participaciones=500.82, fechaParticipaciones=HOY + "T00:10:00", precio=1.8312, fechaPrecio=M0 + "-07")]
             f = lambda i: ([x for x in bd["fondos"] if x["id"] == i] or [None])[0]
-            await pg.click('[data-tab="ahorro"]'); await pg.click("#sync"); await pg.wait_for_timeout(500)
+            from datetime import timedelta
+            bd["gastos"].append(mov("t9", (datetime.now() + timedelta(seconds=2)).strftime("%Y-%m-%dT%H:%M:%S"), "Traspaso a MyInvestor", 50, "traspaso", destino="mi"))
+            await pg.click('[data-tab="ahorro"]'); await pg.wait_for_timeout(2200); await pg.click("#sync"); await pg.wait_for_timeout(500)
             mi = await pg.inner_text('.obj[data-cuenta="mi"]')
+            ok("Aportado: 8.000,00" in mi and "9.250,00" in mi, "fondos: con fondos, lo aportado no cuenta dos veces el traspaso (lo suma el servidor al confirmarse la compra) (%s)" % mi.replace("\n", " | ")[:120])
             ok("Fidelity S&P 500 Index EUR P Acc" in mi and "7.229,20" in mi and "422,02 part. × 17,13 €" in mi and "precio del 8 " in mi and "917,10" in mi and "× 1,8312 €" in mi, "fondos: la tarjeta de inversión enseña cada fondo con participaciones, precio y valor (%s)" % mi.replace("\n", " | "))
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-fondos-1.png", full_page=True)
             await pg.click('.obj[data-cuenta="mi"]'); await pg.wait_for_timeout(200)
