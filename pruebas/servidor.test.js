@@ -209,5 +209,27 @@ hojas.Saldos.f[1][2] = 'no es json'; gmailRoto = true;
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.ok && t.saldos.length === 2 && Object.keys(t.saldos[0].cuentas).length === 0, 'saldos: una fila estropeada no rompe la lectura');
 gmailRoto = false;
+
+// ---------------------------------------------------------------- fondos de la cuenta de inversión
+ok(post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'no-es-isin', participaciones: 1 } }).ok === false, 'fondos: rechaza un ISIN que no lo es');
+post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'ie00byx5mx67', nombre: 'Fidelity S&P 500', cuenta: 'mi', participaciones: 100, fechaParticipaciones: '2026-10-10T16:00:00', precio: 17.13, fechaPrecio: '2026-10-08' } });
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos.length === 1 && t.fondos[0].id === 'IE00BYX5MX67' && t.fondos[0].participaciones === 100 && t.fondos[0].precio === 17.13 && t.fondos[0].fechaPrecio === '2026-10-08' && ct('mi').saldo === 1713 && ct('mi').fechaSaldo === '2026-10-10T16:00:00' && ct('mi').rol === 'inversion', 'fondos: la cuenta pasa a valer participaciones x precio, con la fecha de las participaciones');
+post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'ES0165265002', nombre: 'MyInvestor Nasdaq 100', cuenta: 'mi', participaciones: 500.82, fechaParticipaciones: '2026-10-10T16:05:00' } });
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos.length === 2 && t.fondos[1].precio === null && ct('mi').saldo === 1713, 'fondos: si a un fondo le falta el precio, el valor de la cuenta no se toca');
+const filaNasdaq = hojas.Fondos.f.findIndex(f => f[0] === 'ES0165265002');
+hojas.Fondos.f[filaNasdaq][7] = 1.83; hojas.Fondos.f[filaNasdaq][8] = 'Fecha de valor liquidativo: 7/10/2026';
+hojas.Fondos.f[1][7] = '#REF!';
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos[1].precio === 1.83 && t.fondos[1].fechaPrecio === '2026-10-07' && t.fondos[0].precio === 17.13 && ct('mi').saldo === Math.round((100 * 17.13 + 500.82 * 1.83) * 100) / 100 && ct('mi').fechaSaldo === '2026-10-10T16:05:00', 'fondos: lo que lee la fórmula pasa a ser el precio; un error de la fórmula deja el precio anterior (' + ct('mi').saldo + ')');
+hojas.Fondos.f[1][7] = 17.5; hojas.Fondos.f[1][8] = new Date(2026, 9, 9);
+api.doPost({ postData: { contents: JSON.stringify({ clave: 'k', accion: 'leer' }) } });
+post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'IE00BYX5MX67', participaciones: 110, fechaParticipaciones: '2026-10-11T09:00:00' } });   // la app solo manda lo que cambia
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos[0].precio === 17.5 && t.fondos[0].fechaPrecio === '2026-10-09' && t.fondos[0].nombre === 'Fidelity S&P 500' && t.fondos[0].cuenta === 'mi' && t.fondos[0].participaciones === 110 && hojas.Fondos.f[1][7] === 17.5 && ct('mi').saldo === Math.round((110 * 17.5 + 500.82 * 1.83) * 100) / 100 && ct('mi').fechaSaldo === '2026-10-11T09:00:00', 'fondos: cambiar las participaciones conserva nombre, precio y fórmulas, y recalcula');
+post({ clave: 'k', accion: 'fondo.borrar', id: 'ES0165265002' });
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos.length === 1 && ct('mi').saldo === 1925, 'fondos: al quitar un fondo la cuenta se recalcula con los que quedan');
 Date.now = realNow;
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

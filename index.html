@@ -269,6 +269,17 @@ dialog.candado::backdrop{background:var(--bg)}
 .obj .accion{color:var(--accent);font-weight:600}
 .obj .bar{display:block;width:100%}
 .bar.meta>i{background:var(--ok)}
+.obj .fondos{display:flex;flex-direction:column;border-top:1px solid var(--rule);margin-top:2px}
+.obj .fondo{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 10px;padding:9px 0 0;font-size:13.5px}
+.obj .fondo .f-n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.obj .fondo .f-v{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.obj .fondo .f-d{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
+.c-fondo{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:2px 10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--rule)}
+.c-fondo strong{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-fondo small{grid-column:1;font-size:12.5px;color:var(--muted)}
+.c-fondo input{grid-column:2;grid-row:1/3;text-align:right}
+.c-nuevo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.c-nuevo input:first-child{grid-column:1/-1}
 .graf text.hoy{fill:var(--ink);font-weight:500}
 .graf text.val{fill:var(--ink);font-size:11.5px;font-weight:500}
 .graf .banda{fill:var(--track);opacity:.55}
@@ -430,6 +441,16 @@ dialog.candado::backdrop{background:var(--bg)}
       <input class="texto" id="c-aportado" name="aportado" inputmode="decimal" autocomplete="off" placeholder="Por ejemplo, 8000">
       <p class="nota">Con esto la app calcula cuánto has ganado o perdido. Las aportaciones nuevas se suman solas.</p>
     </div>
+    <fieldset class="grupo" id="c-fondos-grupo" hidden>
+      <legend>Fondos y participaciones</legend>
+      <div id="c-fondos"></div>
+      <div class="c-nuevo">
+        <input class="texto" id="c-f-isin" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="ISIN de un fondo nuevo" aria-label="ISIN de un fondo nuevo">
+        <input class="texto" id="c-f-nombre" autocomplete="off" maxlength="40" placeholder="Nombre" aria-label="Nombre del fondo nuevo">
+        <input class="texto" id="c-f-part" inputmode="decimal" autocomplete="off" placeholder="Participaciones" aria-label="Participaciones del fondo nuevo">
+      </div>
+      <p class="nota">Cuando compres o vendas, pon aquí las participaciones que te salen en el bróker. Para quitar un fondo, deja sus participaciones vacías.</p>
+    </fieldset>
     <div class="grupo">
       <label for="c-tarjetas">Tarjetas de esta cuenta</label>
       <input class="texto" id="c-tarjetas" name="tarjetas" autocomplete="off" placeholder="Por ejemplo, Santander, Visa Débito">
@@ -490,7 +511,7 @@ dialog.candado::backdrop{background:var(--bg)}
   var $ = function (s) { return document.querySelector(s); };
   var S = {
     mes: claveMes(new Date()), tab: 'cuentas', filtro: '',
-    todos: [], movs: [], gastos: [], presupuestos: [], cuentas: [], listoG: false, listoP: false, listoC: false,
+    todos: [], movs: [], gastos: [], presupuestos: [], cuentas: [], fondos: [], listoG: false, listoP: false, listoC: false,
     db: null, sinDatos: false, error: '', editando: null, editCuenta: null, ocupado: false
   };
 
@@ -611,6 +632,14 @@ dialog.candado::backdrop{background:var(--bg)}
     });
     return c.aportado + neto;
   }
+  /* Fondos de una cuenta de inversión, con su valor (participaciones x último precio conocido). */
+  function fondosDe(id) {
+    return S.fondos.filter(function (f) { return f.cuenta === id; }).sort(function (a, b) { return String(a.nombre || a.id).localeCompare(String(b.nombre || b.id)); });
+  }
+  function valorFondo(f) { return typeof f.participaciones === 'number' && typeof f.precio === 'number' ? f.participaciones * f.precio : null; }
+  function numero(n, dec) { return (Number(n) || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
+  function precioTxt(p) { return numero(p, 4).replace(/0{1,2}$/, ''); }   // hasta cuatro decimales, mínimo dos
+  function diaCorto(d) { return d ? Number(String(d).slice(8, 10)) + ' ' + MES_CORTO[Number(String(d).slice(5, 7)) - 1] : ''; }
   /* Traspasos netos de un mes hacia las cuentas de ahorro y de inversión, y lo que ha entrado. */
   function flujoMes(mes) {
     var r = { ahorro: 0, inversion: 0, ingresos: 0, porCuenta: {} };
@@ -1088,8 +1117,17 @@ dialog.candado::backdrop{background:var(--bg)}
         if (ok && ap !== null && ap > 0) {
           var gan = v - ap;
           h += '<span class="pie"><span>Aportado: <strong>' + esc(eur(ap)) + '</strong></span><span class="' + (gan < 0 ? 'menos' : 'mas') + '">' + esc(conSigno(gan) + ' (' + (gan < 0 ? '−' : '+') + Math.abs(gan / ap * 100).toFixed(1).replace('.', ',') + ' %)') + '</span></span>';
-        } else h += '<span class="pie"><span>' + (ok ? 'Valor que has anotado' : 'Anota lo que vale hoy') + '</span><span class="accion">' + (ok ? 'Añadir lo aportado' : 'Poner valor') + '</span></span>';
+        } else h += '<span class="pie"><span>' + (fondosDe(c.id).length ? 'Valor de tus fondos' : ok ? 'Valor que has anotado' : 'Anota lo que vale hoy') + '</span><span class="accion">' + (ok ? 'Añadir lo aportado' : 'Poner valor') + '</span></span>';
         if (esteAnio) h += '<span class="pie"><span>Aportado en ' + anio + '</span><span>' + esc(conSigno(esteAnio)) + '</span></span>';
+        var fs = fondosDe(c.id);
+        if (fs.length) {
+          h += '<span class="fondos">' + fs.map(function (f) {
+            var vf = valorFondo(f);
+            return '<span class="fondo"><span class="f-n">' + esc(f.nombre || f.id) + '</span><span class="f-v">' + (vf === null ? 'Sin precio' : esc(eur(vf))) + '</span>' +
+              '<span class="f-d">' + esc(typeof f.participaciones === 'number' ? numero(f.participaciones, 2) + ' part.' : 'Sin participaciones') +
+              (typeof f.precio === 'number' ? ' × ' + esc(precioTxt(f.precio)) + ' €' + (f.fechaPrecio ? ' · precio del ' + esc(diaCorto(f.fechaPrecio)) : '') : '') + '</span></span>';
+          }).join('') + '</span>';
+        }
         h += '</button>';
       });
       h += '</div></section>';
@@ -1333,6 +1371,11 @@ dialog.candado::backdrop{background:var(--bg)}
     $('#c-objetivo').value = c && c.objetivo > 0 ? String(c.objetivo).replace('.', ',') : '';
     $('#c-aportado').value = ap === null ? '' : ap.toFixed(2).replace('.', ',');
     $('#c-rol-grupo').hidden = !DB.moderno();
+    $('#c-fondos').innerHTML = (c ? fondosDe(c.id) : []).map(function (f, i) {
+      return '<div class="c-fondo"><strong>' + esc(f.nombre || f.id) + '</strong><small>' + esc(f.id) + (typeof f.precio === 'number' ? ' · ' + esc(precioTxt(f.precio)) + ' €' + (f.fechaPrecio ? ' el ' + esc(diaCorto(f.fechaPrecio)) : '') : ' · sin precio todavía') + '</small>' +
+        '<input class="texto" id="c-part-' + i + '" data-fondo="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="Participaciones de ' + esc(f.nombre || f.id) + '" value="' + (typeof f.participaciones === 'number' ? String(f.participaciones).replace('.', ',') : '') + '"></div>';
+    }).join('');
+    $('#c-f-isin').value = ''; $('#c-f-nombre').value = ''; $('#c-f-part').value = '';
     ajustarRol();
     $('#c-error').textContent = '';
     $('#c-eliminar').hidden = !c; $('#c-eliminar').textContent = 'Eliminar'; $('#c-eliminar').dataset.seguro = '';
@@ -1345,6 +1388,11 @@ dialog.candado::backdrop{background:var(--bg)}
     $('#c-objetivo-grupo').hidden = rol !== 'ahorro';
     $('#c-aportado-grupo').hidden = rol !== 'inversion';
     $('#c-saldo-etq').textContent = rol === 'inversion' ? 'Valor de hoy en euros' : 'Saldo de ahora mismo en euros';
+    // Con fondos, el valor lo calcula el servidor (participaciones x precio): no se escribe a mano.
+    var conFondos = rol === 'inversion' && DB.moderno() && !!S.editCuenta && fondosDe(S.editCuenta.id).length > 0;
+    $('#c-fondos-grupo').hidden = !(rol === 'inversion' && DB.moderno() && !!S.editCuenta);
+    $('#c-saldo').disabled = conFondos;
+    if (conFondos) $('#c-saldo-nota').textContent = 'Lo calcula la app: participaciones de cada fondo por su último precio.';
     return rol;
   }
   function cerrarCuenta() { var d = $('#hoja-cuenta'); if (d.close) d.close(); else d.removeAttribute('open'); S.editCuenta = null; }
@@ -1373,9 +1421,32 @@ dialog.candado::backdrop{background:var(--bg)}
       else if (apv !== '') { datos.aportado = apv; datos.fechaAportado = ahoraISO(); }
     }
     var actual = c && tieneSaldo(c) ? Math.round(saldoDe(c).saldo * 100) / 100 : null;
-    if (v !== '' && v !== actual) { datos.saldo = v; datos.fechaSaldo = ahoraISO(); }
+    var misFondos = c && datos.rol === 'inversion' ? fondosDe(c.id) : [], cambios = [];
+    if (c && datos.rol === 'inversion' && DB.moderno()) {
+      document.querySelectorAll('#c-fondos input[data-fondo]').forEach(function (inp) {
+        var f = misFondos.find(function (x) { return x.id === inp.dataset.fondo; }), p = leerImporte(inp.value);
+        if (!f) return;
+        if (p === '') cambios.push({ id: f.id, borrar: true });
+        else if (p !== f.participaciones) cambios.push({ id: f.id, datos: { participaciones: p, fechaParticipaciones: ahoraISO() } });
+      });
+      var isin = $('#c-f-isin').value.toUpperCase().replace(/[^A-Z0-9]/g, ''), pn = leerImporte($('#c-f-part').value);
+      if (isin) {
+        if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin)) { $('#c-error').textContent = 'Ese ISIN no es válido: son 12 caracteres, por ejemplo IE00BYX5MX67.'; return; }
+        if (pn === '' || !(pn > 0)) { $('#c-error').textContent = 'Pon las participaciones del fondo nuevo.'; return; }
+        if (S.fondos.some(function (x) { return x.id === isin; })) { $('#c-error').textContent = 'Ese fondo ya está en la lista.'; return; }
+        cambios.push({ id: isin, nuevo: true, datos: { nombre: $('#c-f-nombre').value.trim() || isin, cuenta: c.id, participaciones: pn, fechaParticipaciones: ahoraISO(), precio: null, fechaPrecio: '' } });
+      }
+    }
+    if (!misFondos.length && v !== '' && v !== actual) { datos.saldo = v; datos.fechaSaldo = ahoraISO(); }
     cerrarCuenta();
-    try { await S.db.doc('cuentas/' + id).set(datos); }
+    try {
+      await S.db.doc('cuentas/' + id).set(datos);
+      for (var k = 0; k < cambios.length; k++) {
+        var r = S.db.doc('fondos/' + cambios[k].id);
+        if (cambios[k].borrar) await r.delete(); else if (cambios[k].nuevo) await r.set(cambios[k].datos); else await r.update(cambios[k].datos);
+      }
+      if (cambios.length) refrescar(false);   // el servidor recalcula el valor de la cuenta con sus fondos
+    }
     catch (e) { fallo(e, 'guardar la cuenta'); }
   }
   async function eliminarCuenta() {
@@ -1494,8 +1565,8 @@ dialog.candado::backdrop{background:var(--bg)}
   /* Copia local de los datos. Cada cambio se ve al instante y después se envía a la hoja;
      si el envío falla, se deshace y se avisa. */
   var DB = (function () {
-    var UNO = { gastos: 'gasto', presupuestos: 'presupuesto', cuentas: 'cuenta' };
-    var datos = { gastos: {}, presupuestos: {}, cuentas: {} }, subs = [], cargado = false, gen = 0, pendientes = 0, historial = [], moderno = false;
+    var UNO = { gastos: 'gasto', presupuestos: 'presupuesto', cuentas: 'cuenta', fondos: 'fondo' };
+    var datos = { gastos: {}, presupuestos: {}, cuentas: {}, fondos: {} }, subs = [], cargado = false, gen = 0, pendientes = 0, historial = [], moderno = false;
     function copia(o) { return JSON.parse(JSON.stringify(o)); }
     function nuevoId() { return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
     function foto(col, filtros) {
@@ -1550,7 +1621,7 @@ dialog.candado::backdrop{background:var(--bg)}
       return q;
     }
     function cargar(j) {
-      ['gastos', 'presupuestos', 'cuentas'].forEach(function (col) {
+      ['gastos', 'presupuestos', 'cuentas', 'fondos'].forEach(function (col) {
         var m = {};
         (j[col] || []).forEach(function (d) { if (d && d.id) { var c = Object.assign({}, d); delete c.id; m[String(d.id)] = c; } });
         datos[col] = m;
@@ -1565,13 +1636,14 @@ dialog.candado::backdrop{background:var(--bg)}
         var o = JSON.parse(localStorage.getItem('mg-datos') || 'null');
         if (o && o.gastos && o.presupuestos && o.cuentas) {
           try { var hs = JSON.parse(localStorage.getItem('mg-saldos') || 'null'); moderno = Array.isArray(hs); historial = moderno ? hs : []; } catch (e2) { historial = []; moderno = false; }
+          if (!o.fondos) o.fondos = {};
           datos = o; cargado = true; avisar(); return true;
         }
       } catch (e) {}
       return false;
     }
     function vaciar() {
-      datos = { gastos: {}, presupuestos: {}, cuentas: {} }; cargado = false; historial = []; moderno = false;
+      datos = { gastos: {}, presupuestos: {}, cuentas: {}, fondos: {} }; cargado = false; historial = []; moderno = false;
       try { localStorage.removeItem('mg-datos'); localStorage.removeItem('mg-saldos'); } catch (e) {}
     }
     return {
@@ -1584,7 +1656,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.0844';
+  var VERSION = '2026-10-10.1610';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
@@ -1657,7 +1729,7 @@ dialog.candado::backdrop{background:var(--bg)}
     try { localStorage.removeItem('mg-clave'); } catch (e) {}
     quitarBio();
     DB.vaciar();
-    S.todos = []; S.presupuestos = []; S.cuentas = []; S.listoG = S.listoP = S.listoC = false;
+    S.todos = []; S.presupuestos = []; S.cuentas = []; S.fondos = []; S.listoG = S.listoP = S.listoC = false;
   }
   function pedirClave(msg) {
     $('#k-clave').value = ''; $('#k-error').textContent = msg || '';
@@ -1818,6 +1890,10 @@ dialog.candado::backdrop{background:var(--bg)}
       S.cuentas = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
         .filter(function (c) { return c.nombre; });
       S.listoC = true; pintar();
+    }, alError);
+    db.collection('fondos').onSnapshot(function (snap) {
+      S.fondos = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      pintar();
     }, alError);
     suscribirGastos();
     if (CLAVE) arrancar(false); else pedirClave('');

@@ -24,6 +24,10 @@ const ROLES = ['gasto', 'ahorro', 'inversion', 'conjunta'];   // para qué es ca
 // Una fila por día con el saldo de cada cuenta: de aquí sale la gráfica de evolución.
 const H_SALDOS = ['Día', 'Total', 'Cuentas'];
 const SALDOS_MAX = 800;   // días que se devuelven a la app
+// Fondos de una cuenta de inversión: su valor es participaciones x precio. Las dos últimas columnas son para
+// fórmulas de la propia hoja que lean el precio y su fecha de fuera; si dan un número, pasa a ser el precio.
+const H_FONDOS = ['ISIN', 'Nombre', 'Cuenta', 'Participaciones', 'Fecha participaciones', 'Precio', 'Fecha precio', 'Lectura precio', 'Lectura fecha'];
+const FONDO_DATOS = 7;    // columnas que escribe el script; las de lectura no se tocan
 
 // Avisos de saldo por correo. El texto es del tipo:
 // "te informamos de que tienes disponible 143,00 EUR en tu cuenta terminada en **0061."
@@ -73,6 +77,7 @@ function doPost(e) {
       case 'pago': return responder(apuntarPago(datos));
       case 'leer': {
         const correo = sincronizarSinRomper();
+        valorarSinRomper();
         fotoSinRomper();
         const todo = leerTodo();
         todo.correo = correo;
@@ -84,6 +89,8 @@ function doPost(e) {
       case 'presupuesto.borrar': return responder(borrarFila('Presupuestos', H_PRESUPUESTOS, 1, datos.id));
       case 'cuenta.guardar': return responder(guardarCuenta(datos.cuenta));
       case 'cuenta.borrar': return responder(borrarFila('Cuentas', H_CUENTAS, 1, datos.id));
+      case 'fondo.guardar': return responder(guardarFondo(datos.fondo));
+      case 'fondo.borrar': return responder(borrarFondo(datos.id));
       default: return responder({ ok: false, error: 'Acción desconocida' });
     }
   } catch (err) {
@@ -245,6 +252,108 @@ function rolValido(valor) {
   return ROLES.indexOf(r) > -1 ? r : '';
 }
 
+/* ------------------------------------------------------------------- fondos */
+
+function leerFondos() {
+  const zona = zonaHoraria();
+  return leerFilas('Fondos', H_FONDOS).map(function (f) {
+    return {
+      id: String(f[0]),
+      nombre: String(f[1] || ''),
+      cuenta: String(f[2] || ''),
+      participaciones: typeof f[3] === 'number' ? f[3] : null,
+      fechaParticipaciones: fechaTexto(f[4], zona),
+      precio: typeof f[5] === 'number' ? f[5] : null,
+      fechaPrecio: diaTexto(f[6], zona),
+    };
+  });
+}
+
+function isinValido(valor) {
+  const isin = String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin) ? isin : '';
+}
+
+function guardarFondo(x) {
+  const isin = isinValido(x && x.id);
+  if (!isin) throw new Error('ISIN no válido');
+  const h = hoja('Fondos', H_FONDOS);
+  const fila = buscarFila(h, 1, isin);
+  const antes = fila ? h.getRange(fila, 1, 1, FONDO_DATOS).getValues()[0] : [];
+  const o = function (valor, columna) { return valor === undefined ? (antes[columna] === undefined ? '' : antes[columna]) : valor; };
+  const numero = function (valor) { return typeof valor === 'number' && isFinite(valor) && valor >= 0 ? valor : ''; };
+  const zona = zonaHoraria();
+  const fPart = o(x.fechaParticipaciones, 4), fPrecio = diaTexto(o(x.fechaPrecio, 6), zona);
+  guardarFila('Fondos', H_FONDOS, isin, [
+    isin,
+    texto(o(x.nombre, 1)),
+    texto(o(x.cuenta, 2)),
+    numero(o(x.participaciones, 3)),
+    fPart ? "'" + fechaTexto(fPart, zona) : '',
+    numero(o(x.precio, 5)),
+    fPrecio ? "'" + fPrecio : '',
+  ]);
+  valorarFondos();
+  return { ok: true, id: isin };
+}
+
+function borrarFondo(id) {
+  const r = borrarFila('Fondos', H_FONDOS, 1, isinValido(id) || id);
+  valorarFondos();
+  return r;
+}
+
+// Pasa a "Precio" lo que hayan leído las fórmulas y pone en cada cuenta el valor de sus fondos.
+// La fecha del saldo es la de las participaciones: lo traspasado después se suma hasta que se actualicen.
+function valorarFondos() {
+  const h = hoja('Fondos', H_FONDOS);
+  const n = h.getLastRow() - 1;
+  if (n < 1) return 0;
+  const zona = zonaHoraria();
+  const hoy = Utilities.formatDate(new Date(), zona, 'yyyy-MM-dd');
+  const filas = h.getRange(2, 1, n, H_FONDOS.length).getValues().filter(function (f) { return String(f[0]) !== ''; });
+  filas.forEach(function (f) {
+    const leido = f[7];
+    if (typeof leido !== 'number' || !isFinite(leido) || !(leido > 0)) return;
+    const fecha = diaTexto(f[8], zona) || hoy;
+    if (leido === f[5] && fecha === diaTexto(f[6], zona)) return;
+    f[5] = leido; f[6] = fecha;
+    h.getRange(buscarFila(h, 1, String(f[0])), 6, 1, 2).setValues([[leido, "'" + fecha]]);
+  });
+  const porCuenta = {};
+  filas.forEach(function (f) { const c = String(f[2] || ''); if (c) (porCuenta[c] = porCuenta[c] || []).push(f); });
+  const cuentas = leerCuentas();
+  let cambiadas = 0;
+  Object.keys(porCuenta).forEach(function (id) {
+    const c = cuentas.filter(function (q) { return q.id === id; })[0];
+    const fondos = porCuenta[id];
+    if (!c || !fondos.every(function (f) { return typeof f[3] === 'number' && typeof f[5] === 'number'; })) return;
+    const valor = Math.round(fondos.reduce(function (a, f) { return a + f[3] * f[5]; }, 0) * 100) / 100;
+    const fecha = fondos.map(function (f) { return conSegundos(fechaTexto(f[4], zona)); }).sort().pop() || c.fechaSaldo || Utilities.formatDate(new Date(), zona, F_FECHA);
+    if (c.saldo === valor && conSegundos(c.fechaSaldo) === fecha) return;
+    c.saldo = valor; c.fechaSaldo = fecha;
+    guardarCuenta(c);
+    cambiadas++;
+  });
+  return cambiadas;
+}
+
+// Si la valoración falla, lo demás sigue funcionando.
+function valorarSinRomper() {
+  try { return valorarFondos(); } catch (err) { return 0; }
+}
+
+// Día "aaaa-mm-dd" a partir de una fecha de la hoja, un texto ISO o un texto "d/m/aaaa".
+function diaTexto(valor, zona) {
+  if (valor instanceof Date) return Utilities.formatDate(valor, zona || zonaHoraria(), 'yyyy-MM-dd');
+  const t = String(valor == null ? '' : valor).trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(t);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return '';
+}
+
 /* ------------------------------------------------------- historial de saldos */
 
 // Una vez al día (la primera pasada tras medianoche) apunta el saldo de cada cuenta.
@@ -309,7 +418,7 @@ function tareaCorreo() {
   const candado = LockService.getScriptLock();
   try {
     candado.waitLock(20000);
-    try { sincronizarCorreo(); } finally { fotoSinRomper(); }
+    try { sincronizarCorreo(); } finally { valorarSinRomper(); fotoSinRomper(); }
   } finally {
     try { candado.releaseLock(); } catch (err) { /* no lo teníamos */ }
   }
@@ -466,7 +575,7 @@ function cuatroCifras(valor) {
 /* ------------------------------------------------------------------ lectura */
 
 function leerTodo() {
-  return { ok: true, gastos: leerGastos(), presupuestos: leerPresupuestos(), cuentas: leerCuentas(), saldos: leerSaldos() };
+  return { ok: true, gastos: leerGastos(), presupuestos: leerPresupuestos(), cuentas: leerCuentas(), saldos: leerSaldos(), fondos: leerFondos() };
 }
 
 /* --------------------------------------------------------------- utilidades */
@@ -495,6 +604,10 @@ function hoja(nombre, cabecera) {
       h.getRange('G:H').setNumberFormat('@');
       h.getRange('I:J').setNumberFormat('#,##0.00 €');
       h.getRange('K:K').setNumberFormat('@');
+    } else if (nombre === 'Fondos') {
+      h.getRange('A:C').setNumberFormat('@');
+      h.getRange('E:E').setNumberFormat('@');
+      h.getRange('G:G').setNumberFormat('@');
     } else if (nombre === 'Saldos') {
       h.getRange('A:A').setNumberFormat('@');
       h.getRange('B:B').setNumberFormat('#,##0.00 €');
