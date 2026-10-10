@@ -28,7 +28,7 @@ global.Utilities = {
   base64DecodeWebSafe: t => { if (typeof t !== 'string') throw new Error('Could not decode string.'); return Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64'); },
   newBlob: b => ({ getDataAsString: () => Buffer.from(b).toString('utf8') }),
   getUuid: () => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16)),
-  formatDate: d => d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()),
+  formatDate: (d, z, f) => d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + (f === 'yyyy-MM-dd' ? '' : 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds())),
   parseDate: s => { const m = s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)/).map(Number); return new Date(m[1], m[2]-1, m[3], m[4], m[5], m[6]); },
 };
 const correos = []; const props = {}; const disparadores = []; let gmailRoto = false;
@@ -173,5 +173,37 @@ t = post({ clave: 'k', accion: 'leer' });
 ok(t.cuentas[0].fechaSaldo === '2026-10-09T18:02:22' && t.cuentas[1].fechaSaldo === '2026-10-09T18:02:46', 'la fecha del saldo sale siempre con T (' + t.cuentas[0].fechaSaldo + ', ' + t.cuentas[1].fechaSaldo + ')');
 post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'revolut', nombre: 'Revolut', saldo: 50, fechaSaldo: '2026-10-09 20:00', tarjetas: [], orden: 2 } });
 ok(hojas.Cuentas.f[2][3] === '2026-10-09T20:00:00', 'al guardar, la fecha del saldo se normaliza');
+
+// ---------------------------------------------------------------- papel de cada cuenta e historial de saldos
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'tr', nombre: 'Trade Republic', saldo: 4000, fechaSaldo: '2026-10-09T20:00:00', tarjetas: [], orden: 3, rol: 'ahorro', objetivo: 6000 } });
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'mi', nombre: 'MyInvestor', saldo: 9000, fechaSaldo: '2026-10-09T20:00:00', tarjetas: [], orden: 4, rol: 'inversion', aportado: 8000, fechaAportado: '2026-10-09 20:00' } });
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'revolut', nombre: 'Revolut', saldo: 50, fechaSaldo: '2026-10-09T20:00:00', tarjetas: [], orden: 2, rol: 'cualquiera' } });
+t = post({ clave: 'k', accion: 'leer' });
+let ct = id => t.cuentas.find(q => q.id === id);
+ok(ct('tr').rol === 'ahorro' && ct('tr').objetivo === 6000 && ct('tr').aportado === null && ct('mi').rol === 'inversion' && ct('mi').aportado === 8000 && ct('mi').fechaAportado === '2026-10-09T20:00:00' && ct('revolut').rol === '' && ct('banco-santander').rol === '', 'cuentas: papel, objetivo y aportado (un papel desconocido se queda vacío)');
+ok(hojas.Cuentas.f[0][7] === 'Rol' && hojas.Cuentas.f[0][10] === 'Fecha aportado', 'cuentas: la cabecera se amplía sola');
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'tr', nombre: 'Trade Republic', saldo: 4100, fechaSaldo: '2026-10-09T21:00:00', tarjetas: [], orden: 3 } });   // una app antigua no manda los campos nuevos
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'mi', nombre: 'MyInvestor', saldo: 9000, fechaSaldo: '2026-10-09T20:00:00', tarjetas: [], orden: 4, rol: 'inversion', objetivo: null, aportado: null, fechaAportado: '' } });
+t = post({ clave: 'k', accion: 'leer' });
+ok(ct('tr').saldo === 4100 && ct('tr').rol === 'ahorro' && ct('tr').objetivo === 6000 && ct('mi').aportado === null && ct('mi').fechaAportado === '', 'cuentas: lo que no se manda se conserva y lo que se manda vacío se borra');
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: Object.assign({}, ct('banco-santander'), { rol: 'gasto' }) });
+aviso('e7', hora(19, 55), '470,00'); reloj = hora(20, 30);
+ok(hojas.Saldos && hojas.Saldos.f.length === 2, 'saldos: ya había una foto de las lecturas anteriores');
+delete props.fotoDia; delete hojas.Saldos;
+t = post({ clave: 'k', accion: 'leer' });
+ok(ct('banco-santander').saldo === 470 && ct('banco-santander').rol === 'gasto' && ct('banco-santander').terminaEn === '0061', 'correo: un aviso del banco no borra el papel de la cuenta');
+const hoyTxt = (() => { const d = new Date(); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); })();
+ok(t.saldos.length === 1 && t.saldos[0].dia === hoyTxt && typeof t.saldos[0].cuentas.tr === 'number' && Object.keys(t.saldos[0].cuentas).length === 4, 'saldos: la primera lectura del día guarda una foto (' + JSON.stringify(t.saldos[0]) + ')');
+const f1 = t.saldos[0];
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gtr9', fecha: '2026-10-09T23:00:00', comercio: 'Traspaso a Trade Republic', importe: 100, tipo: 'traspaso', cuenta: 'banco-santander', destino: 'tr', origen: 'Banco' } });
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.saldos.length === 1 && hojas.Saldos.f.length === 2, 'saldos: no se repite el mismo día');
+props.fotoDia = '2000-01-01'; hojas.Saldos.f[1][0] = '2026-10-01';
+api.tareaCorreo ? 0 : 0; t = post({ clave: 'k', accion: 'leer' });
+ok(t.saldos.length === 2 && t.saldos[0].dia === '2026-10-01' && t.saldos[1].dia === hoyTxt && t.saldos[1].cuentas.tr === f1.cuentas.tr + 100 && t.saldos[1].cuentas['banco-santander'] === f1.cuentas['banco-santander'] - 100 && Math.abs(t.saldos[1].total - f1.total) < 0.005, 'saldos: al día siguiente se añade otra foto y los traspasos mueven el saldo de las dos cuentas (' + JSON.stringify(t.saldos[1].cuentas) + ')');
+hojas.Saldos.f[1][2] = 'no es json'; gmailRoto = true;
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.ok && t.saldos.length === 2 && Object.keys(t.saldos[0].cuentas).length === 0, 'saldos: una fila estropeada no rompe la lectura');
+gmailRoto = false;
 Date.now = realNow;
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

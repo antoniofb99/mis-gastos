@@ -19,7 +19,11 @@ const H_GASTOS = ['Fecha', 'Comercio', 'Importe', 'Tarjeta', 'Categoría', 'Orig
 const TIPOS = ['gasto', 'ingreso', 'traspaso'];
 const H_PRESUPUESTOS = ['ID', 'Nombre', 'Límite', 'Orden'];
 // Termina en: las 4 últimas cifras de la cuenta, para saber a cuál se refiere cada aviso del banco.
-const H_CUENTAS = ['ID', 'Nombre', 'Saldo', 'Fecha saldo', 'Tarjetas', 'Orden', 'Termina en'];
+const H_CUENTAS = ['ID', 'Nombre', 'Saldo', 'Fecha saldo', 'Tarjetas', 'Orden', 'Termina en', 'Rol', 'Objetivo', 'Aportado', 'Fecha aportado'];
+const ROLES = ['gasto', 'ahorro', 'inversion', 'conjunta'];   // para qué es cada cuenta
+// Una fila por día con el saldo de cada cuenta: de aquí sale la gráfica de evolución.
+const H_SALDOS = ['Día', 'Total', 'Cuentas'];
+const SALDOS_MAX = 800;   // días que se devuelven a la app
 
 // Avisos de saldo por correo. El texto es del tipo:
 // "te informamos de que tienes disponible 143,00 EUR en tu cuenta terminada en **0061."
@@ -69,6 +73,7 @@ function doPost(e) {
       case 'pago': return responder(apuntarPago(datos));
       case 'leer': {
         const correo = sincronizarSinRomper();
+        fotoSinRomper();
         const todo = leerTodo();
         todo.correo = correo;
         return responder(todo);
@@ -197,6 +202,10 @@ function leerCuentas() {
       tarjetas: String(f[4] || '').split(',').map(function (t) { return t.trim(); }).filter(String),
       orden: Number(f[5]) || 0,
       terminaEn: cuatroCifras(f[6]),
+      rol: rolValido(f[7]),
+      objetivo: typeof f[8] === 'number' ? f[8] : null,
+      aportado: typeof f[9] === 'number' ? f[9] : null,
+      fechaAportado: fechaTexto(f[10], zona),
     };
   });
 }
@@ -204,21 +213,73 @@ function leerCuentas() {
 function guardarCuenta(c) {
   if (!c || !c.id) throw new Error('Falta la cuenta');
   const tarjetas = (c.tarjetas || []).map(function (t) { return String(t).replace(/,/g, ' ').trim(); }).filter(String);
-  let terminaEn = c.terminaEn;
-  if (terminaEn === undefined) {   // quien guarda no lo conoce: se conserva el que hubiera
-    const h = hoja('Cuentas', H_CUENTAS);
-    const fila = buscarFila(h, 1, String(c.id));
-    terminaEn = fila ? h.getRange(fila, 7).getValue() : '';
-  }
+  // Lo que quien guarda no conoce (undefined) se conserva tal como estuviera en la hoja.
+  const h = hoja('Cuentas', H_CUENTAS);
+  const fila = buscarFila(h, 1, String(c.id));
+  const antes = fila ? h.getRange(fila, 1, 1, H_CUENTAS.length).getValues()[0] : [];
+  const o = function (valor, columna) { return valor === undefined ? (antes[columna] === undefined ? '' : antes[columna]) : valor; };
+  const numero = function (valor) { return typeof valor === 'number' && isFinite(valor) ? valor : ''; };
+  const zona = zonaHoraria();
+  const fechaAportado = o(c.fechaAportado, 10);
   return guardarFila('Cuentas', H_CUENTAS, String(c.id), [
     String(c.id),
     texto(c.nombre),
     typeof c.saldo === 'number' ? c.saldo : '',
-    c.fechaSaldo ? "'" + fechaTexto(c.fechaSaldo, zonaHoraria()) : '',
+    c.fechaSaldo ? "'" + fechaTexto(c.fechaSaldo, zona) : '',
     texto(tarjetas.join(', ')),
     Number(c.orden) || 0,
-    cuatroCifras(terminaEn),
+    cuatroCifras(o(c.terminaEn, 6)),
+    rolValido(o(c.rol, 7)),
+    numero(o(c.objetivo, 8)),
+    numero(o(c.aportado, 9)),
+    fechaAportado ? "'" + fechaTexto(fechaAportado, zona) : '',
   ]);
+}
+
+function rolValido(valor) {
+  const r = String(valor || '').toLowerCase();
+  return ROLES.indexOf(r) > -1 ? r : '';
+}
+
+/* ------------------------------------------------------- historial de saldos */
+
+// Una vez al día (la primera pasada tras medianoche) apunta el saldo de cada cuenta.
+function fotoDiaria() {
+  const zona = zonaHoraria();
+  const hoy = Utilities.formatDate(new Date(), zona, 'yyyy-MM-dd');
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('fotoDia') === hoy) return false;
+  const cuentas = leerCuentas();
+  const conSaldo = cuentas.filter(function (c) { return typeof c.saldo === 'number'; });
+  if (!conSaldo.length) return false;   // aún no hay nada que apuntar: se volverá a mirar en la siguiente pasada
+  {
+    const movimientos = leerGastos();
+    const ahora = Utilities.formatDate(new Date(), zona, F_FECHA);
+    const detalle = {};
+    let total = 0;
+    conSaldo.forEach(function (c) {
+      const v = Math.round(saldoCalculado(c, cuentas, movimientos, ahora) * 100) / 100;
+      detalle[c.id] = v; total += v;
+    });
+    guardarFila('Saldos', H_SALDOS, hoy, ["'" + hoy, Math.round(total * 100) / 100, JSON.stringify(detalle)]);
+  }
+  props.setProperty('fotoDia', hoy);
+  return true;
+}
+
+// Si la foto falla, lo demás sigue funcionando.
+function fotoSinRomper() {
+  try { return fotoDiaria(); } catch (err) { return false; }
+}
+
+function leerSaldos() {
+  const zona = zonaHoraria();
+  return leerFilas('Saldos', H_SALDOS).slice(-SALDOS_MAX).map(function (f) {
+    let cuentas = {};
+    try { cuentas = JSON.parse(String(f[2] || '{}')) || {}; } catch (err) { cuentas = {}; }
+    const dia = f[0] instanceof Date ? Utilities.formatDate(f[0], zona, 'yyyy-MM-dd') : String(f[0]).slice(0, 10);
+    return { dia: dia, total: Number(f[1]) || 0, cuentas: cuentas };
+  });
 }
 
 /* --------------------------------------------------------- avisos del banco */
@@ -244,7 +305,7 @@ function tareaCorreo() {
   const candado = LockService.getScriptLock();
   try {
     candado.waitLock(20000);
-    sincronizarCorreo();
+    try { sincronizarCorreo(); } finally { fotoSinRomper(); }
   } finally {
     try { candado.releaseLock(); } catch (err) { /* no lo teníamos */ }
   }
@@ -401,7 +462,7 @@ function cuatroCifras(valor) {
 /* ------------------------------------------------------------------ lectura */
 
 function leerTodo() {
-  return { ok: true, gastos: leerGastos(), presupuestos: leerPresupuestos(), cuentas: leerCuentas() };
+  return { ok: true, gastos: leerGastos(), presupuestos: leerPresupuestos(), cuentas: leerCuentas(), saldos: leerSaldos() };
 }
 
 /* --------------------------------------------------------------- utilidades */
@@ -427,7 +488,13 @@ function hoja(nombre, cabecera) {
       h.getRange('A:A').setNumberFormat('@');
       h.getRange('C:C').setNumberFormat('#,##0.00 €');
       h.getRange('D:E').setNumberFormat('@');
-      h.getRange('G:G').setNumberFormat('@');
+      h.getRange('G:H').setNumberFormat('@');
+      h.getRange('I:J').setNumberFormat('#,##0.00 €');
+      h.getRange('K:K').setNumberFormat('@');
+    } else if (nombre === 'Saldos') {
+      h.getRange('A:A').setNumberFormat('@');
+      h.getRange('B:B').setNumberFormat('#,##0.00 €');
+      h.getRange('C:C').setNumberFormat('@');
     }
   }
   return h;
