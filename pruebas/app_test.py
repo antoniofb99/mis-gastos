@@ -142,6 +142,21 @@ async def main():
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-hueco.png")
             await pg.evaluate("Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight }); dispatchEvent(new Event('resize'))")
             ok(normal == [False, True, True] and roto == [True, "59px", True, True] and not await pg.evaluate("document.documentElement.classList.contains('hueco')"), "hueco de iOS: sin él todo igual; con él, el fondo de fuera toma el color del menú (%s | %s)" % (normal, roto))
+            # --- versión nueva: se carga escribiendo la página encima, sin recargar (recargar deja el hueco en iOS)
+            import re as _re
+            actual = open("index.html", encoding="utf-8").read(); NUEVA = "2099-01-01.0000"
+            nueva = _re.sub(r"var VERSION = '[^']*';", "var VERSION = '%s';" % NUEVA, actual)
+            pedidas = []
+            async def r_version(route): await route.fulfill(status=200, content_type="application/json", body=json.dumps({"v": NUEVA}))
+            async def r_index(route): pedidas.append(route.request.url); await route.fulfill(status=200, content_type="text/html; charset=utf-8", body=nueva)
+            await pg.route("**/version.json*", r_version); await pg.route("**/index.html?v=*", r_index)
+            await pg.evaluate("window.__marca = 1; document.dispatchEvent(new Event('visibilitychange'))"); await pg.wait_for_timeout(1500)
+            await pg.click("#ajustes"); pie = await pg.inner_text("#m-version"); await pg.keyboard.press("Escape"); await pg.click('[data-tab="resumen"]'); enres = await pg.is_visible("#v-resumen"); await pg.click('[data-tab="cuentas"]')
+            n0 = llamadas.count("leer"); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(600); unavez = llamadas.count("leer") - n0
+            await pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); await pg.wait_for_timeout(600)
+            ok(len(pedidas) == 1 and NUEVA in pedidas[0] and NUEVA in pie and await pg.evaluate("window.__marca") == 1 and "?v=" not in pg.url and enres and len(await sal()) == 2 and unavez == 1 and not errs,
+               "versión nueva: se carga sin recargar la página, la app sigue funcionando y no se repite (%s, %s leer, %s)" % (pie, unavez, errs))
+            await pg.unroute("**/version.json*"); await pg.unroute("**/index.html?v=*")
             # --- el ojo: difumina los importes y se recuerda
             filtro = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).filter")
             logos = await pg.eval_on_selector_all(".cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : 'letras'))")

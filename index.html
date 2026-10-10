@@ -1632,7 +1632,16 @@ dialog.candado::backdrop{background:var(--bg)}
     } catch (e) {}
     document.documentElement.classList.toggle('hueco', h > 0);
     document.documentElement.style.setProperty('--hueco', h + 'px');
+    if (h > 0 && !reajustado) {   // una vez por carga: volver a declarar el área de pantalla hace que iOS, a veces, recalcule el alto
+      reajustado = true;
+      var m = document.querySelector('meta[name="viewport"]'), c = m && m.getAttribute('content');
+      if (c && c.indexOf(',viewport-fit=cover') > -1) {
+        m.setAttribute('content', c.replace(',viewport-fit=cover', ''));
+        setTimeout(function () { m.setAttribute('content', c); setTimeout(medirHueco, 350); }, 60);
+      }
+    }
   }
+  var reajustado = false;
   medirHueco();
   ['resize', 'orientationchange', 'pageshow'].forEach(function (ev) { window.addEventListener(ev, medirHueco); });
   document.addEventListener('visibilitychange', medirHueco);
@@ -1808,17 +1817,25 @@ dialog.candado::backdrop{background:var(--bg)}
     };
   })();
 
-  /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
-     (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.2308';
+  /* Versión de la app. Si en el servidor hay una más nueva, se carga sola (el iPhone tiende a quedarse con la
+     copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
+     iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
+     En su lugar se descarga la página nueva y se escribe encima de la actual. */
+  var VERSION = '2026-10-10.2320';
   async function comprobarVersion() {
     try {
+      var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
       var j = await r.json();
       if (!j || !j.v || j.v === VERSION) return;
-      if (location.search.indexOf('v=' + j.v) > -1) return;                  // ya se intentó: no entrar en bucle
-      if (BIO.estado !== 'no' || DB.pendientes() || document.querySelector('dialog[open]')) return;   // no interrumpir lo que se está haciendo
-      location.replace(location.pathname + '?v=' + encodeURIComponent(j.v));
+      var hecho = ''; try { hecho = sessionStorage.getItem('mg-v') || ''; } catch (e) {}
+      if (hecho === j.v || !libre()) return;                                  // ya se intentó: no entrar en bucle
+      var p = await fetch('index.html?v=' + encodeURIComponent(j.v), { cache: 'no-store' });
+      var html = await p.text();
+      if (!p.ok || html.indexOf("VERSION = '" + j.v + "'") < 0 || !libre()) return;   // aún no está publicada del todo: otra vez será
+      try { sessionStorage.setItem('mg-v', j.v); } catch (e) {}
+      var id = setTimeout(function () {}, 0); while (id > 0) { clearTimeout(id); clearInterval(id); id--; }   // los relojes de esta copia no deben seguir vivos
+      document.open(); document.write(html); document.close();
     } catch (e) { /* sin conexión: se mirará la próxima vez */ }
   }
   /* Un movimiento sin identificar con el mismo importe y sentido que otros ya identificados en meses anteriores
