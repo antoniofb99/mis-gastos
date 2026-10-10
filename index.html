@@ -35,6 +35,7 @@ body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env
   --ok:#1B7F52; --warn:#A86200; --over:#C93028;
   --ok-bg:#DDF1E6; --warn-bg:#FBEBCF; --over-bg:#FBDEDB;
   --shade:rgba(22,26,41,.5);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s-otras:#8a90a0;
   --barra:#161A29;
   --font-ui:"Bricolage Grotesque",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-num:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -46,6 +47,7 @@ body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env
     --ok:#56C592; --warn:#EDAE4A; --over:#FF7A70;
     --ok-bg:#16332A; --warn-bg:#3A2C12; --over-bg:#40201E;
     --shade:rgba(0,0,0,.62); --barra:#0D1017;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s-otras:#6f7689;
     color-scheme:dark;
   }
 }
@@ -55,6 +57,7 @@ body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env
   --ok:#56C592; --warn:#EDAE4A; --over:#FF7A70;
   --ok-bg:#16332A; --warn-bg:#3A2C12; --over-bg:#40201E;
   --shade:rgba(0,0,0,.62); --barra:#0D1017;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s-otras:#6f7689;
   color-scheme:dark;
 }
 
@@ -159,17 +162,26 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .vacio strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
 
 /* Cuentas */
-.saldo-total{display:flex;flex-direction:column;gap:6px}
-.saldo-total .eyebrow{font-family:var(--font-num);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.cuentas{display:flex;flex-direction:column;gap:10px}
-.cuenta{background:var(--paper);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
-.cuenta .fila{display:flex;align-items:baseline;justify-content:space-between;gap:6px 12px;flex-wrap:wrap}
-.cuenta .nombre{font-weight:700;font-size:16px;min-width:0;overflow-wrap:anywhere}
-.cuenta .saldo{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:22px;font-weight:500;letter-spacing:-.03em}
+.reparto{background:var(--paper);border-radius:14px;padding:20px 16px 4px;display:flex;flex-direction:column;gap:12px}
+.rosco{position:relative;width:250px;max-width:100%;aspect-ratio:1;margin:0 auto}
+.rosco svg{display:block;width:100%;height:100%}
+.rosco .seg.apagado{opacity:.26}
+.rosco .toque{cursor:pointer}
+.rosco .centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;pointer-events:none;padding:0 46px}
+.rosco .eyebrow{font-family:var(--font-num);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rosco .cifra{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:-.04em;line-height:1.05;white-space:nowrap}
+.rosco .cifra.neg{color:var(--over)}
+.rosco .sub{font-size:12.5px;color:var(--muted)}
+.reparto>.nota{text-align:center}
+.ctas{display:flex;flex-direction:column}
+.cuenta{display:flex;align-items:center;gap:10px;width:100%;padding:14px 2px;text-align:left;border-top:1px solid var(--rule)}
+.cuenta .punto{flex:none;width:10px;height:10px;border-radius:50%}
+.cuenta .punto.sin{background:none;border:1.5px solid var(--muted)}
+.cuenta .nombre{flex:1;min-width:0;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cuenta .saldo{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:16.5px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
 .cuenta .saldo.neg{color:var(--over)}
+.cuenta.marcada .nombre{font-weight:800}
 .total.neg{color:var(--over)}
-.cuenta .det{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
-.cuenta .acc{padding-top:2px}
 .pend{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule)}
 .pend strong{overflow-wrap:anywhere}
 .pend small{grid-column:1;color:var(--muted);font-size:13px}
@@ -262,6 +274,7 @@ dialog.candado::backdrop{background:var(--bg)}
   @keyframes gira{to{transform:rotate(360deg)}}
   .bar>i{transition:width .35s ease}
   .interruptor,.interruptor i{transition:background .18s ease,transform .18s ease}
+  .rosco .seg{transition:opacity .15s ease}
   dialog.hoja[open]{animation:sube .22s ease-out}
   @keyframes sube{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
 }
@@ -350,6 +363,7 @@ dialog.candado::backdrop{background:var(--bg)}
       <h2 id="hc-titulo">Nueva cuenta</h2>
       <button class="cerrar" type="button" id="hc-cerrar" aria-label="Cerrar">&#10005;</button>
     </header>
+    <p class="nota" id="c-info" hidden></p>
     <div class="grupo">
       <label for="c-nombre">Nombre de la cuenta</label>
       <input class="texto" id="c-nombre" name="nombre" autocomplete="off" maxlength="40" placeholder="Por ejemplo, Banco Santander">
@@ -759,6 +773,43 @@ dialog.candado::backdrop{background:var(--bg)}
 
   var SIN_DATOS = '<div class="vacio"><strong>No se han podido cargar tus datos</strong>Abre esta página con tu sesión de Claude iniciada para ver y guardar tus gastos.</div>';
 
+  /* Gráfico circular del reparto del saldo. Solo entran las cuentas con saldo positivo;
+     el color va con la cuenta (por su orden) y a partir de la séptima se agrupan en "Otras". */
+  var ROSCO_MAX = 6;
+  function rosco(filas, total) {
+    var RAD = 82, ANCHO = 18, LARGO = 2 * Math.PI * RAD, HUECO = 2.2, segs = [], color = {}, otras = 0;
+    filas.forEach(function (f, i) {
+      var v = tieneSaldo(f.c) ? f.s.saldo : 0;
+      if (!(v > 0)) return;
+      if (i < ROSCO_MAX) { color[f.c.id] = 'var(--s' + (i + 1) + ')'; segs.push({ id: f.c.id, nombre: f.c.nombre, v: v, color: color[f.c.id] }); }
+      else { color[f.c.id] = 'var(--s-otras)'; otras += v; }
+    });
+    if (otras > 0) segs.push({ id: '_otras', nombre: 'Otras cuentas', v: otras, color: 'var(--s-otras)' });
+    var suma = segs.reduce(function (a, x) { return a + x.v; }, 0);
+    if (S.segSel && !segs.some(function (x) { return x.id === S.segSel; })) S.segSel = null;
+    var sel = S.segSel ? segs.find(function (x) { return x.id === S.segSel; }) : null;
+    var pct = function (v) { var p = v / suma * 100; return (p < 1 ? '<1' : String(Math.round(p))) + ' %'; };
+    var arcos = '', toques = '', pos = 0;
+    segs.forEach(function (x) {
+      var largo = x.v / suma * LARGO, visto = segs.length > 1 ? Math.max(largo - HUECO, 1) : largo;
+      var comun = ' cx="100" cy="100" r="' + RAD + '" fill="none" data-seg="' + esc(x.id) + '"';
+      arcos += '<circle class="seg' + (sel && sel !== x ? ' apagado' : '') + '"' + comun + ' stroke="' + x.color + '" stroke-width="' + ANCHO +
+        '" stroke-dasharray="' + visto.toFixed(2) + ' ' + (LARGO - visto).toFixed(2) + '" stroke-dashoffset="' + (-(pos + (largo - visto) / 2)).toFixed(2) + '"/>';
+      toques += '<circle class="toque"' + comun + ' stroke="transparent" pointer-events="stroke" stroke-width="44" stroke-dasharray="' + largo.toFixed(2) + ' ' + (LARGO - largo).toFixed(2) +
+        '" stroke-dashoffset="' + (-pos).toFixed(2) + '"><title>' + esc(x.nombre + ': ' + eur(x.v) + ' (' + pct(x.v) + ')') + '</title></circle>';
+      pos += largo;
+    });
+    var cifra = eur(sel ? sel.v : total), cuerpo = Math.max(15, Math.min(30, Math.floor(160 / (cifra.length * 0.61))));
+    var n = filas.length, alt = 'Reparto del saldo: ' + (segs.length ? segs.map(function (x) { return x.nombre + ' ' + eur(x.v) + ' (' + pct(x.v) + ')'; }).join(', ') : 'sin saldo que repartir') + '.';
+    var html = '<div class="rosco"><svg viewBox="0 0 200 200" role="img" aria-label="' + esc(alt) + '">' +
+      (segs.length ? '' : '<circle cx="100" cy="100" r="' + RAD + '" fill="none" stroke="var(--track)" stroke-width="' + ANCHO + '"/>') +
+      '<g transform="rotate(-90 100 100)">' + arcos + toques + '</g></svg>' +
+      '<div class="centro"><div class="eyebrow">' + esc(sel ? sel.nombre : 'Saldo total') + '</div>' +
+      '<div class="cifra' + (!sel && total < 0 ? ' neg' : '') + '" style="font-size:' + cuerpo + 'px">' + esc(cifra) + '</div>' +
+      '<div class="sub">' + (sel ? pct(sel.v) + ' del total' : n + (n === 1 ? ' cuenta' : ' cuentas')) + '</div></div></div>';
+    return { html: html, color: color };
+  }
+
   function pintarCuentas() {
     var el = $('#v-cuentas');
     if (S.sinDatos) { el.innerHTML = SIN_DATOS; return; }
@@ -769,21 +820,18 @@ dialog.candado::backdrop{background:var(--bg)}
     if (!cuentas.length) {
       h += '<div class="vacio"><strong>Aún no hay cuentas</strong>Añade cada cuenta con su saldo de hoy y sus tarjetas. Desde ese momento, cada pago se resta de su cuenta.</div>';
     } else {
-      h += '<div class="saldo-total"><div class="eyebrow">Saldo total · ' + cuentas.length + (cuentas.length === 1 ? ' cuenta' : ' cuentas') + '</div>' +
-        '<div class="total' + (total < 0 ? ' neg' : '') + '">' + esc(eur(total)) + '</div>' +
-        (sinSaldo ? '<p class="nota">' + (sinSaldo === 1 ? 'Falta el saldo de 1 cuenta; no entra en el total.' : 'Falta el saldo de ' + sinSaldo + ' cuentas; no entran en el total.') + '</p>' : '') + '</div>';
-      h += '<div class="cuentas">';
-      filas.forEach(function (f) {
-        var c = f.c, s = f.s, ok = tieneSaldo(c);
-        h += '<div class="cuenta"><div class="fila"><span class="nombre">' + esc(c.nombre) + '</span>' +
-          (ok ? '<span class="saldo' + (s.saldo < 0 ? ' neg' : '') + '">' + esc(eur(s.saldo)) + '</span>' : '<span class="pill none">Sin saldo</span>') + '</div>';
-        if (ok) h += '<div class="det">' + (c.terminaEn ? 'Saldo según tu banco. ' : '') +
-          esc(s.n ? s.n + (s.n === 1 ? ' movimiento' : ' movimientos') + ' desde el ' + fechaHora(c.fechaSaldo) + ': ' + conSigno(s.neto) : 'Sin movimientos desde el ' + fechaHora(c.fechaSaldo)) + '</div>';
-        h += '<div class="det">' + ((c.tarjetas || []).length ? 'Tarjetas: ' + esc(c.tarjetas.join(', ')) : 'Sin tarjetas asociadas') +
-          (c.terminaEn ? ' · Cuenta acabada en ' + esc(c.terminaEn) : '') + '</div>';
-        h += '<div class="acc"><button class="enlace" type="button" data-cuenta="' + esc(c.id) + '">' + (ok ? 'Actualizar saldo o tarjetas' : 'Poner el saldo de hoy') + '</button></div></div>';
+      var R = rosco(filas, total);
+      h += '<section class="reparto">' + R.html +
+        (sinSaldo ? '<p class="nota">' + (sinSaldo === 1 ? 'Falta el saldo de 1 cuenta; no entra en el total.' : 'Falta el saldo de ' + sinSaldo + ' cuentas; no entran en el total.') + '</p>' : '') +
+        '<div class="ctas">';
+      filas.forEach(function (f, i) {
+        var c = f.c, s = f.s, ok = tieneSaldo(c), color = R.color[c.id];
+        h += '<button class="cuenta' + (S.segSel === c.id || (S.segSel === '_otras' && color === 'var(--s-otras)') ? ' marcada' : '') + '" type="button" data-cuenta="' + esc(c.id) + '">' +
+          '<i class="punto' + (color ? '' : ' sin') + '"' + (color ? ' style="background:' + color + '"' : '') + '></i>' +
+          '<span class="nombre">' + esc(c.nombre) + '</span>' +
+          (ok ? '<span class="saldo' + (s.saldo < 0 ? ' neg' : '') + '">' + esc(eur(s.saldo)) + '</span>' : '<span class="pill none">Sin saldo</span>') + '</button>';
       });
-      h += '</div>';
+      h += '</div></section>';
     }
     var dudas = S.todos.filter(sinIdentificar).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
     if (dudas.length) {
@@ -978,6 +1026,13 @@ dialog.candado::backdrop{background:var(--bg)}
     $('#c-saldo-nota').textContent = ok
       ? 'Es el saldo que calcula la app. Si en el banco ves otro, escríbelo aquí y la cuenta se pone al día.'
       : 'Mira el saldo en la app del banco y escríbelo. Desde ese momento se irán restando tus pagos.';
+    var info = '';
+    if (ok) {
+      var sd = saldoDe(c);
+      info = (c.terminaEn ? 'Saldo según tu banco. ' : '') +
+        (sd.n ? sd.n + (sd.n === 1 ? ' movimiento' : ' movimientos') + ' desde el ' + fechaHora(c.fechaSaldo) + ': ' + conSigno(sd.neto) : 'Sin movimientos desde el ' + fechaHora(c.fechaSaldo)) + '.';
+    }
+    $('#c-info').textContent = info; $('#c-info').hidden = !info;
     $('#c-tarjetas').value = c ? (c.tarjetas || []).join(', ') : '';
     $('#c-fin').value = c ? (c.terminaEn || '') : '';
     $('#c-error').textContent = '';
@@ -1065,6 +1120,12 @@ dialog.candado::backdrop{background:var(--bg)}
   $('#form-cuenta').addEventListener('submit', guardarCuenta);
   $('#c-eliminar').addEventListener('click', eliminarCuenta);
   $('#v-cuentas').addEventListener('change', function (e) { var s = e.target.closest('select[data-tarjeta]'); if (s) asignarTarjeta(s); });
+  $('#v-cuentas').addEventListener('click', function (e) {
+    if (!e.target.closest('.rosco')) return;
+    var t = e.target.closest('[data-seg]'), id = t ? t.getAttribute('data-seg') : null;
+    S.segSel = id && id !== S.segSel ? id : null;
+    pintarCuentas();
+  });
   document.querySelector('.tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) irA(b.dataset.tab); });
   document.querySelector('main').addEventListener('click', function (e) {
     var t = e.target.closest('[data-gasto],[data-ir],[data-filtro],[data-quitar],[data-cuenta],[data-nueva-cuenta]');
@@ -1192,7 +1253,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.0053';
+  var VERSION = '2026-10-10.0807';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });

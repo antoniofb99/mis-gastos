@@ -79,7 +79,7 @@ async def main():
             await pg.click('[data-tab="resumen"]'); antes = await pg.inner_text("#v-resumen .total")
             await pg.click('[data-tab="cuentas"]'); await pg.click("#sync"); await pg.wait_for_timeout(400)
             s = await sal(); dudas = await pg.eval_on_selector_all("#v-cuentas .sec .mov", "e=>e.map(x=>x.querySelector('.m-n').textContent+' '+x.querySelector('.m-i').textContent)")
-            det = await pg.inner_text(".cuenta .det")
+            await pg.click('[data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); det = await pg.inner_text("#c-info"); await pg.click("#hc-cerrar")
             ok(s[0] == "Banco Santander=143,00\u00a0€" and dudas == ["Sin identificar 2,01\u00a0€", "Sin identificar +1,00\u00a0€"] and "Saldo según tu banco" in det, "aviso del banco: saldo del banco y dos movimientos por identificar (%s | %s)" % (s[0], dudas))
             await pg.click('[data-tab="resumen"]'); despues = await pg.inner_text("#v-resumen .total"); lineas = await pg.inner_text("#v-resumen .lineas")
             num = lambda x: float(x.replace("\u00a0€", "").replace(".", "").replace(",", "."))
@@ -97,6 +97,22 @@ async def main():
             cs = [x for x in bd["cuentas"] if x["id"] == "banco-santander"][0]
             ok(fin == "0061" and cs["terminaEn"] == "0061" and cs["saldo"] == 143.0 and cs["fechaSaldo"] == corte, "editar la cuenta conserva las 4 cifras y el saldo del banco")
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-banco.png", full_page=True)
+            # --- gráfico circular de Cuentas ---
+            centro = lambda: pg.eval_on_selector(".rosco .centro", "e => [...e.children].map(x => x.textContent)")
+            segs = await pg.eval_on_selector_all(".rosco .seg", "e => e.map(x => x.getAttribute('data-seg') + ':' + x.getAttribute('stroke'))")
+            c0 = await centro(); puntos = await pg.eval_on_selector_all(".cuenta .punto", "e => e.map(x => x.style.background)")
+            filas_simples = await pg.eval_on_selector_all(".cuenta", "e => e.every(x => x.children.length === 3 && !x.querySelector('.det'))")
+            ok(segs == ["banco-santander:var(--s1)", "tarjeta-comida:var(--s2)"] and c0 == ["Saldo total", "343,55\u00a0€", "2 cuentas"] and puntos == ["var(--s1)", "var(--s2)"] and filas_simples, "gráfico: un trozo por cuenta, el total en el centro y filas solo con nombre y saldo (%s | %s)" % (segs, c0))
+            async def tocar(seg):   # un toque de verdad en mitad del arco
+                x, y = await pg.eval_on_selector('.toque[data-seg="%s"]' % seg, """e => { const d = e.getAttribute('stroke-dasharray').split(' ').map(Number), o = -Number(e.getAttribute('stroke-dashoffset'));
+                    const p = e.getPointAtLength((o + d[0] / 2) % e.getTotalLength()), m = e.getScreenCTM(); return [p.x * m.a + p.y * m.c + m.e, p.x * m.b + p.y * m.d + m.f]; }""")
+                await pg.mouse.click(x, y); await pg.wait_for_timeout(100)
+            await tocar("tarjeta-comida"); c1 = await centro(); ap = await pg.eval_on_selector_all(".rosco .seg.apagado", "e => e.map(x => x.getAttribute('data-seg'))"); marc = await pg.eval_on_selector_all(".cuenta.marcada .nombre", "e => e.map(x => x.textContent)")
+            await tocar("banco-santander"); c2 = await centro()
+            await tocar("banco-santander"); c3 = await centro()
+            ok(c1 == ["Tarjeta comida (Restaurante)", "200,55\u00a0€", "58 % del total"] and ap == ["banco-santander"] and marc == ["Tarjeta comida (Restaurante)"] and c2[0] == "Banco Santander" and c2[2] == "42 % del total" and c3 == c0, "gráfico: tocar un trozo enseña esa cuenta y su parte; tocarlo otra vez vuelve al total (%s | %s)" % (c1, c2))
+            cabe = await pg.evaluate("(() => { const c = document.querySelector('.rosco .cifra').getBoundingClientRect(), r = document.querySelector('.rosco').getBoundingClientRect(); return c.width < r.width * 0.70; })()")
+            ok(cabe, "gráfico: la cifra cabe dentro del círculo")
             # --- bloqueo con Face ID ---
             cara = lambda v: cdp.send("WebAuthn.setUserVerified", {"authenticatorId": aut, "isUserVerified": v})
             cerrado = lambda: pg.evaluate("document.querySelector('#candado').hasAttribute('open')")
