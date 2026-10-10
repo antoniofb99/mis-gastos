@@ -3,6 +3,9 @@ import asyncio, json, subprocess, sys, time
 from playwright.async_api import async_playwright
 API = "https://script.google.com/macros/s/"
 K = "clave-de-prueba"
+TIRAR = """(() => { const t = (tipo, y) => { const p = new Touch({ identifier: 1, target: document.body, clientX: 200, clientY: y });
+    document.body.dispatchEvent(new TouchEvent(tipo, { touches: tipo === 'touchend' ? [] : [p], changedTouches: [p], bubbles: true })); };
+    t('touchstart', 150); t('touchmove', 190); t('touchmove', 300); t('touchend', 300); })()"""   # tirar hacia abajo desde arriba: actualiza
 bd = {"gastos": [{"id": "g1", "fecha": "2026-10-09T16:59:40", "comercio": "PRUEBA Mercadona", "importe": 12.5, "tarjeta": "Tarjeta de prueba", "categoria": "Supermercado", "origen": "Prueba", "cuenta": ""}],
       "presupuestos": [{"id": "supermercado", "nombre": "Supermercado", "limite": 350, "orden": 1}, {"id": "restaurantes", "nombre": "Restaurantes", "limite": 150, "orden": 2}],
       "cuentas": [{"id": "banco-santander", "nombre": "Banco Santander", "saldo": 144.01, "fechaSaldo": "2026-10-09T18:02:22", "tarjetas": ["Santander"], "orden": 1},
@@ -26,7 +29,7 @@ async def main():
     try:
         async with async_playwright() as p:
             b = await p.chromium.launch()
-            ctx = await b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, locale="es-ES")
+            ctx = await b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, locale="es-ES", has_touch=True)
             pg = await ctx.new_page(); errs = []
             pg.on("pageerror", lambda e: errs.append(str(e)))
             async def ruta(route):
@@ -61,7 +64,7 @@ async def main():
             ya = (datetime.now() + timedelta(seconds=1)).strftime("%Y-%m-%dT%H:%M:%S")
             bd["gastos"].append({"id": "gw1", "fecha": ya, "comercio": "Bar Central", "importe": 11.5, "tarjeta": "Edenred Ticket", "categoria": "Restaurantes", "origen": "Apple Pay", "cuenta": ""})
             bd["gastos"].append({"id": "gw2", "fecha": ya, "comercio": "Repsol", "importe": 34, "tarjeta": "Santander Débito", "categoria": "Gasolina", "origen": "Apple Pay", "cuenta": ""})
-            await pg.click("#sync"); await pg.wait_for_timeout(400)
+            await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(400)
             s = await sal(); pend = await pg.eval_on_selector_all(".pend strong", "e=>e.map(x=>x.textContent)")
             ok(s[0] == "Banco Santander=100,00 €" and "Edenred Ticket" in pend, "pago de Apple Pay: se resta de Santander y la tarjeta nueva pide cuenta (%s, %s)" % (s[0], pend))
             await pg.select_option('.pend select[data-tarjeta="Edenred Ticket"]', "tarjeta-comida"); await pg.wait_for_timeout(400)
@@ -77,7 +80,7 @@ async def main():
             bd["gastos"].append({"id": "gb1", "fecha": t1, "comercio": "Sin identificar", "importe": 1, "tarjeta": "", "categoria": "", "origen": "Banco", "cuenta": "banco-santander", "tipo": "ingreso", "destino": ""})
             bd["gastos"].append({"id": "gb2", "fecha": t2, "comercio": "Sin identificar", "importe": 2.01, "tarjeta": "", "categoria": "Otros", "origen": "Banco", "cuenta": "banco-santander", "tipo": "gasto", "destino": ""})
             await pg.click('[data-tab="resumen"]'); antes = await pg.inner_text("#v-resumen .total")
-            await pg.click('[data-tab="cuentas"]'); await pg.click("#sync"); await pg.wait_for_timeout(400)
+            await pg.click('[data-tab="cuentas"]'); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(400)
             s = await sal(); dudas = await pg.eval_on_selector_all("#v-cuentas .sec .mov", "e=>e.map(x=>x.querySelector('.m-n').textContent+' '+x.querySelector('.m-i').textContent)")
             await pg.click('#v-cuentas [data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); det = await pg.inner_text("#c-info"); await pg.click("#hc-cerrar")
             ok(s[0] == "Banco Santander=143,00\u00a0€" and dudas == ["Sin identificar 2,01\u00a0€", "Sin identificar +1,00\u00a0€"] and "Saldo según tu banco" in det, "aviso del banco: saldo del banco y dos movimientos por identificar (%s | %s)" % (s[0], dudas))
@@ -118,12 +121,18 @@ async def main():
             ok(cabe, "gráfico: la cifra cabe dentro del círculo")
             # --- la hoja responde "ok" pero sin datos (la respuesta del webhook): no se pierde lo que había
             antes_raro = await sal(); raro["v"] = {"ok": True, "mensaje": "Webhook de gastos activo"}
-            n0 = llamadas.count("leer"); await pg.click("#sync"); await pg.wait_for_timeout(1900); reintentos = llamadas.count("leer") - n0
+            n0 = llamadas.count("leer"); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(1900); reintentos = llamadas.count("leer") - n0
             aviso = await pg.inner_text("#aviso-error") if await pg.is_visible("#aviso-error") else ""; cache = await pg.evaluate("Object.keys(JSON.parse(localStorage.getItem('mg-datos')).cuentas).length")
             await pg.reload(); await pg.wait_for_timeout(600); tras = await sal(); await pg.wait_for_timeout(1500)
-            raro["v"] = None; await pg.click("#sync"); await pg.wait_for_timeout(500)
+            raro["v"] = None; await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(500)
             ok(reintentos == 2 and len(antes_raro) == 2 and await sal() == antes_raro and tras == antes_raro and cache == 2 and "Webhook de gastos activo" in aviso and "última copia" in aviso and await pg.is_hidden("#aviso-error"),
                "respuesta sin datos: se conservan las cuentas, se avisa y al volver la hoja se quita el aviso (%s)" % aviso)
+            # --- actualizar: ya no hay botón; se tira hacia abajo estando arriba del todo
+            n0 = llamadas.count("leer"); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); gira = await pg.evaluate("document.querySelector('#tirar').classList.contains('girando')")
+            await pg.wait_for_timeout(500); n1 = llamadas.count("leer"); aviso_t = await pg.inner_text("#toast"); para = await pg.evaluate("document.querySelector('#tirar').classList.contains('girando')")
+            await pg.evaluate("document.querySelector('.app').style.minHeight = '3000px'; scrollTo(0, 400)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(300); n2 = llamadas.count("leer")
+            await pg.evaluate("document.querySelector('.app').style.minHeight = ''; scrollTo(0, 0)")
+            ok(await pg.locator("#sync").count() == 0 and gira and not para and n1 == n0 + 1 and "Datos al día" in aviso_t and n2 == n1, "actualizar: tirar hacia abajo desde arriba recarga; a mitad de página no (%s, %s, %s)" % (n0, n1, n2))
             # --- el ojo: difumina los importes y se recuerda
             filtro = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).filter")
             logos = await pg.eval_on_selector_all(".cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : 'letras'))")

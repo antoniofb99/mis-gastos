@@ -4,6 +4,9 @@ from datetime import datetime
 from playwright.async_api import async_playwright
 API = "https://script.google.com/macros/s/"
 K = "clave-de-prueba"
+TIRAR = """(() => { const t = (tipo, y) => { const p = new Touch({ identifier: 1, target: document.body, clientX: 200, clientY: y });
+    document.body.dispatchEvent(new TouchEvent(tipo, { touches: tipo === 'touchend' ? [] : [p], changedTouches: [p], bubbles: true })); };
+    t('touchstart', 150); t('touchmove', 190); t('touchmove', 300); t('touchend', 300); })()"""   # tirar hacia abajo desde arriba: actualiza
 hoy = datetime.now()
 def mes(d):   # mes de hace d meses, "AAAA-MM"
     y, m = hoy.year, hoy.month - d
@@ -47,13 +50,13 @@ async def main():
     try:
         async with async_playwright() as p:
             b = await p.chromium.launch()
-            ctx = await b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, locale="es-ES")
+            ctx = await b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, locale="es-ES", has_touch=True)
             pg = await ctx.new_page(); errs = []
             pg.on("pageerror", lambda e: errs.append(str(e)))
             async def ruta(route): await route.fulfill(status=200, content_type="application/json", headers={"access-control-allow-origin": "*"}, body=json.dumps(api(route.request.post_data)))
             await pg.route(API + "**", ruta)
             await pg.goto("http://127.0.0.1:8767/index.html"); await pg.fill("#k-clave", K); await pg.click("#k-entrar"); await pg.wait_for_timeout(300)
-            await pg.click("#sync"); await pg.wait_for_timeout(900)
+            await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(900)
             # --- lo que se repite se reconoce solo
             ok(g("d1")["tipo"] == "traspaso" and g("d1")["destino"] == "tr" and g("d1")["cuenta"] == "san" and g("d1")["comercio"] == "Traspaso a Trade Republic" and g("d1")["fecha"] == HOY + "T00:30:00", "aprende: una salida de 300 € como las de otros meses pasa a ser el traspaso de siempre")
             ok(g("d2")["comercio"] == "Nómina" and g("d2")["tipo"] == "ingreso" and g("d2")["categoria"] == "", "aprende: el ingreso de 2.000 € se reconoce como la nómina")
@@ -126,7 +129,7 @@ async def main():
             await pg.click('[data-tab="cuentas"]'); await pg.wait_for_timeout(150)
             ini = await pg.eval_on_selector_all("#v-cuentas .cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : x.querySelector('.logo').textContent) + ':' + x.children.length)")
             centro = await pg.eval_on_selector(".rosco .centro", "e => [...e.children].map(x => x.textContent)"); cab = await pg.inner_text("#mes-txt")
-            ok(ficha == "Trade Republic" and ini == ["san:img:3", "rev:img:3", "tr:img:3"] and centro[0] == "Saldo total" and centro[2] == "Sin inversiones" and abs(num(centro[1]) + num(grupos[3].split("=")[1]) - tot) < 0.01 and cab == "Inicio"
+            ok(ficha == "Trade Republic" and ini == ["san:img:3", "rev:img:3", "tr:img:3"] and centro[0] == "Saldo total" and centro[2] == "Sin inversiones" and abs(num(centro[1]) + num(grupos[3].split("=")[1]) - tot) < 0.01 and cab == "Hola, Antonio" and await pg.is_hidden("#mes-sub")
                and await pg.locator("#v-cuentas [data-nueva-cuenta]").count() == 1, "inicio: solo las cuentas que no son de inversión, cada una con su logo, y el gráfico sin inversiones (%s | %s)" % (ini, centro))
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-inicio.png", full_page=True)
             menu = await pg.eval_on_selector_all(".tabs button", "e => e.map(b => b.textContent.trim() + ':' + b.querySelectorAll('svg').length)")
@@ -159,7 +162,7 @@ async def main():
             f = lambda i: ([x for x in bd["fondos"] if x["id"] == i] or [None])[0]
             from datetime import timedelta
             bd["gastos"].append(mov("t9", (datetime.now() + timedelta(seconds=2)).strftime("%Y-%m-%dT%H:%M:%S"), "Traspaso a MyInvestor", 50, "traspaso", destino="mi"))
-            await pg.click('[data-tab="ahorro"]'); await pg.wait_for_timeout(2200); await pg.click("#sync"); await pg.wait_for_timeout(500)
+            await pg.click('[data-tab="ahorro"]'); await pg.wait_for_timeout(2200); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(500)
             mi = await pg.inner_text('#v-ahorro .obj[data-cuenta="mi"]')
             ok("Aportado: 8.000,00" in mi and "9.250,00" in mi, "fondos: con fondos, lo aportado no cuenta dos veces el traspaso (lo suma el servidor al confirmarse la compra) (%s)" % mi.replace("\n", " | ")[:120])
             ok("Fidelity S&P 500 Index EUR P Acc" in mi and "7.229,20" in mi and "422,02 part. × 17,13 €" in mi and "precio del 8 " in mi and "917,10" in mi and "× 1,8312 €" in mi, "fondos: la tarjeta de inversión enseña cada fondo con participaciones, precio y valor (%s)" % mi.replace("\n", " | "))
