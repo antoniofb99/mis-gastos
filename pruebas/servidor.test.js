@@ -66,6 +66,10 @@ w = post({ clave: 'k', comercio: '=HYPERLINK("x")', importe: '', tarjeta: '' });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.gastos[2].comercio === '=HYPERLINK("x")' && t.gastos[2].categoria === 'Otros' && t.gastos[2].importe === 0, 'webhook: texto con = se guarda como texto; importe vacío = 0; categoría por defecto');
 ok(typeof hojas.Gastos.f[3][1] === 'string', 'no es fórmula');
+w = post({ clave: 'k', comercio: '', importe: '', tarjeta: '' });
+ok(w.ok && w.prueba === true && /Conexión correcta/.test(w.mensaje) && post({ clave: 'k', accion: 'leer' }).gastos.length === 3, 'webhook: una prueba vacía contesta que hay conexión y no apunta nada');
+w = post({ clave: 'k' });
+ok(w.ok && w.prueba === true && post({ clave: 'k', accion: 'leer' }).gastos.length === 3, 'webhook: tampoco apunta nada si solo llega la clave');
 
 // gastos desde la app
 let g = post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gabc', fecha: '2026-10-09T18:20:11', comercio: 'Bar', importe: 7.5, categoria: 'Restaurantes', cuenta: 'banco-santander', origen: 'A mano' } });

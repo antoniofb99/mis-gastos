@@ -105,6 +105,10 @@ function apuntarPago(datos) {
   const comercio = String(datos.comercio || '').trim();
   const importeOriginal = String(datos.importe == null ? '' : datos.importe).trim();
   const importe = leerImporte(importeOriginal);
+  // Sin comercio ni importe es una prueba de conexión (ejecutar el atajo a mano): se contesta sin apuntar nada.
+  if (!comercio && !(importe > 0)) {
+    return { ok: true, prueba: true, mensaje: 'Conexión correcta. No se ha apuntado nada porque no venía ni comercio ni importe.' };
+  }
   const id = nuevoId();
   hoja('Gastos', H_GASTOS).appendRow([
     new Date(),
