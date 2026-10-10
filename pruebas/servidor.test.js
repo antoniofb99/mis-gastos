@@ -43,7 +43,7 @@ global.ScriptApp = { getProjectTriggers: () => disparadores.map(f => ({ getHandl
 global.LockService = { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) };
 global.ContentService = { MimeType: { JSON: 'json' }, createTextOutput: t => ({ t, setMimeType() { return this; } }) };
 const src = fs.readFileSync(__dirname + '/../servidor/Codigo.gs', 'utf8').replace("CAMBIA-ESTA-CLAVE", 'k');
-const api = new Function(src + '; return { doPost, doGet };')();
+const api = new Function(src + '; return { doPost, doGet, categorizar };')();
 const post = o => JSON.parse(api.doPost({ postData: { contents: JSON.stringify(o) } }).t);
 let fallos = 0; const ok = (c, m) => { if (!c) { fallos++; console.log('FALLO', m); } else console.log('ok   ', m); };
 
@@ -124,6 +124,7 @@ t = post({ clave: 'k', accion: 'leer' });
 ok(por('gt1').tipo === 'ingreso' && por('gt1').destino === '' && por('gt1').importe === 250, 'cambiar de traspaso a ingreso limpia el destino');
 ok(post({ clave: 'k', accion: 'inventada' }).ok === false, 'acción desconocida');
 ok(JSON.parse(api.doGet().t).ok, 'doGet responde');
+ok(api.categorizar('Plenergy Us 250 Lebrija I') === 'Gasolina' && api.categorizar('Gasolinera La Paz') === 'Gasolina' && api.categorizar('Zara') !== 'Gasolina', 'categorías: Plenergy y cualquier «gasolinera» son Gasolina');
 
 // ---------------------------------------------------------------- avisos del banco por correo
 const DE = 'SantanderInforma@emailing.bancosantander-mail.es';

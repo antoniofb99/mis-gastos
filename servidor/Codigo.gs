@@ -53,7 +53,7 @@ const F_FECHA = "yyyy-MM-dd'T'HH:mm:ss";
 // solo coincide como palabra suelta, así "Media Markt" no cuenta como supermercado DIA.
 const CATEGORIAS = [
   ['Supermercado', ['mercadona', 'lidl', 'carrefour', 'aldi', ' dia ', 'alcampo', 'eroski', 'consum', 'supersol', 'coviran', 'masymas', ' mas ']],
-  ['Gasolina', ['repsol', 'cepsa', 'moeve', ' bp ', 'shell', 'galp', 'petroprix', 'plenoil', 'ballenoil', 'gasolinera', 'e.s.']],
+  ['Gasolina', ['repsol', 'cepsa', 'moeve', ' bp ', 'shell', 'galp', 'petroprix', 'plenoil', 'plenergy', 'ballenoil', 'gasolinera', 'e.s.']],
   ['Restaurantes', ['restaurante', ' bar ', 'cafeteria', ' cafe ', 'burger', 'mcdonald', 'kfc', 'telepizza', 'domino', 'glovo', 'just eat', 'uber eats', 'cerveceria', 'meson', ' venta ']],
   ['Transporte', ['renfe', 'uber', 'cabify', 'bolt', 'taxi', 'parking', 'aparcamiento', 'peaje', 'autopista', 'alsa']],
   ['Compras', ['amazon', 'zara', 'decathlon', 'el corte ingles', 'ikea', 'leroy', 'mediamarkt', 'media markt', 'primark', 'aliexpress']],
