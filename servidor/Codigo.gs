@@ -325,7 +325,7 @@ function valorarFondos() {
     const leido = f[7];
     if (typeof leido !== 'number' || !isFinite(leido) || !(leido > 0)) return;
     if (typeof f[5] === 'number' && f[5] > 0 && (leido / f[5] > 2 || leido / f[5] < 0.5)) return;   // un salto así es un error de lectura, no un precio
-    const fecha = diaTexto(f[8], zona) || hoy;
+    const fecha = diaTexto(f[8], zona) || (leido === f[5] ? diaTexto(f[6], zona) : '') || hoy;   // sin fecha leída, la que hubiera si el precio no cambia
     if (leido === f[5] && fecha === diaTexto(f[6], zona)) return;
     f[5] = leido; f[6] = fecha;
     h.getRange(buscarFila(h, 1, String(f[0])), 6, 1, 2).setValues([[leido, "'" + fecha]]);
@@ -372,7 +372,8 @@ function ponerLecturas(h, vacias, fallidas, hoy) {
     const fila = i + 2, celda = 'J' + fila;
     const crudo = 'REGEXEXTRACT(' + celda + sep + '"""price"":""?([0-9.]+)")';
     h.getRange(fila, 10).setFormula('=TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTXML("' + url + '"' + sep +
-      '"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | (//*[contains(.,\'Fecha de valor liquidativo\')])[last()]"))');
+      '"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | ' +
+      '//*[contains(.,\'Fecha de valor liquidativo\')][not(*[contains(.,\'Fecha de valor liquidativo\')])]"))');   // sin paréntesis: la hoja no admite (…)[last()] dentro de una unión
     h.getRange(fila, 8).setFormula(ingles ? '=VALUE(' + crudo + ')' : '=VALUE(SUBSTITUTE(' + crudo + sep + '"."' + sep + '","))');
     h.getRange(fila, 9).setFormula('=REGEXEXTRACT(' + celda + sep + '"liquidativo:\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")');
   }

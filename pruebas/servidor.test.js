@@ -222,7 +222,7 @@ t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 2 && t.fondos[1].precio === null && ct('mi').saldo === 1713, 'fondos: si a un fondo le falta el precio, el valor de la cuenta no se toca');
 const sello = hoyFondos.replace(/-/g, '');
 ok(props.lecturaDia === hoyFondos && hojas.Fondos.f[0][9] === 'Lectura'
-  && hojas.Fondos.f[1][9] === '=TEXTJOIN(" ";TRUE;IMPORTXML("https://www.finect.com/fondos-inversion/IE00BYX5MX67-x?d=' + sello + '";"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | (//*[contains(.,\'Fecha de valor liquidativo\')])[last()]"))'
+  && hojas.Fondos.f[1][9] === '=TEXTJOIN(" ";TRUE;IMPORTXML("https://www.finect.com/fondos-inversion/IE00BYX5MX67-x?d=' + sello + '";"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | //*[contains(.,\'Fecha de valor liquidativo\')][not(*[contains(.,\'Fecha de valor liquidativo\')])]"))'
   && hojas.Fondos.f[1][7] === '=VALUE(SUBSTITUTE(REGEXEXTRACT(J2;"""price"":""?([0-9.]+)");".";","))'
   && hojas.Fondos.f[2][8] === '=REGEXEXTRACT(J3;"liquidativo:\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")' && /ES0165265002-x\?d=/.test(hojas.Fondos.f[2][9]), 'fondos: cada fondo recibe las fórmulas que leen su precio y su fecha');
 const filaNasdaq = hojas.Fondos.f.findIndex(f => f[0] === 'ES0165265002');
@@ -248,6 +248,8 @@ t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 1 && ct('mi').saldo === 1925, 'fondos: al quitar un fondo la cuenta se recalcula con los que quedan');
 hojas.Fondos.f[1][7] = 171335; t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos[0].precio === 17.5 && ct('mi').saldo === 1925, 'fondos: una lectura disparatada (171335 en vez de 17,1335) no se toma como precio');
+hojas.Fondos.f[1][7] = 17.5; hojas.Fondos.f[1][8] = '#N/A'; t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos[0].precio === 17.5 && t.fondos[0].fechaPrecio === '2026-10-09', 'fondos: si no se lee la fecha y el precio no cambia, se conserva la fecha que había (' + t.fondos[0].fechaPrecio + ')');
 hojas.Fondos.f[1][7] = 17.5; props.lecturaDia = '2000-01-01'; t = post({ clave: 'k', accion: 'leer' });
 ok(props.lecturaDia === hoyFondos && /^=VALUE\(SUBSTITUTE\(REGEXEXTRACT/.test(hojas.Fondos.f[1][7]) && t.fondos[0].precio === 17.5, 'fondos: al cambiar de día las fórmulas se reescriben para volver a pedir la página');
 hojas.Fondos.f[1][7] = 17.5;
