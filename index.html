@@ -162,7 +162,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .vacio strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
 
 /* Cuentas */
-.reparto{background:var(--paper);border-radius:14px;padding:20px 16px 4px;display:flex;flex-direction:column;gap:12px}
+.reparto{background:var(--paper);border-radius:16px;padding:20px 16px 18px;display:flex;flex-direction:column;gap:12px}
 .rosco{position:relative;width:250px;max-width:100%;aspect-ratio:1;margin:0 auto}
 .rosco svg{display:block;width:100%;height:100%}
 .rosco .seg.apagado{opacity:.26}
@@ -173,13 +173,18 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .rosco .cifra.neg{color:var(--over)}
 .rosco .sub{font-size:12.5px;color:var(--muted)}
 .reparto>.nota{text-align:center}
-.ctas{display:flex;flex-direction:column}
-.cuenta{display:flex;align-items:center;gap:10px;width:100%;padding:14px 2px;text-align:left;border-top:1px solid var(--rule)}
-.cuenta .punto{flex:none;width:10px;height:10px;border-radius:50%}
-.cuenta .punto.sin{background:none;border:1.5px solid var(--muted)}
+.ctas{display:flex;flex-direction:column;gap:10px}
+.cuenta{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px 12px 12px;text-align:left;background:var(--paper);border-radius:16px}
+.logo{flex:none;position:relative;width:44px;height:44px;border-radius:12px;background:#fff;box-shadow:inset 0 0 0 1px rgba(22,26,41,.12);display:grid;place-items:center;font-size:14.5px;font-weight:800;letter-spacing:-.02em;color:#161A29}
+.logo img{display:block;width:100%;height:100%;border-radius:12px}
+.logo.letras{background:var(--track);box-shadow:none;color:var(--ink)}
+.logo .punto{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;border-radius:50%;border:2.5px solid var(--paper)}
+.sec>header.centro{align-items:center}
+.sec>header .flecha{width:34px;height:34px}
 .cuenta .nombre{flex:1;min-width:0;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cuenta .saldo{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:16.5px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
 .cuenta .saldo.neg{color:var(--over)}
+.cuenta.marcada{box-shadow:inset 0 0 0 2px var(--ink)}
 .cuenta.marcada .nombre{font-weight:800}
 .total.neg{color:var(--over)}
 .pend{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule)}
@@ -211,14 +216,14 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .btn[disabled]{opacity:.5;cursor:default}
 
 /* Navegación inferior */
-.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(68px + env(safe-area-inset-bottom,0px));background:var(--accent);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
+.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(72px + env(safe-area-inset-bottom,0px));background:var(--accent);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
 .tabs{position:fixed;z-index:6;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tabs div{max-width:540px;margin-inline:auto;display:grid;grid-template-columns:1fr 1fr 1.18fr 1.22fr 1fr;gap:2px;padding:8px 6px}
-.tabs button{border-radius:10px;padding:10px 0;font-size:11px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;color:var(--muted)}
-@media (min-width:430px){.tabs button{font-size:12.5px;letter-spacing:-.01em}}
-.tabs.cuatro div{grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px}
-.tabs.cuatro button{font-size:12.5px;letter-spacing:-.01em;padding:10px 2px}
-.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
+.tabs div{max-width:540px;margin-inline:auto;display:flex;justify-content:space-between;padding:6px 4px 4px}
+.tabs button{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 1px 3px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;color:var(--muted)}
+.tabs svg{display:block;width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tabs button[aria-current="page"]{color:var(--ink);font-weight:800}
+.tabs button[aria-current="page"] svg{stroke-width:2.3}
+@media (min-width:430px){.tabs button{font-size:11px;letter-spacing:-.01em}}
 
 /* Hoja para añadir o editar */
 dialog.hoja{border:0;padding:0;margin:auto auto 0;width:100%;max-width:540px;max-height:92%;background:var(--paper);color:var(--ink);border-radius:20px 20px 0 0;overflow:auto}
@@ -295,6 +300,28 @@ dialog.candado::backdrop{background:var(--bg)}
 .papel .nombre{font-weight:700}
 .papel .opciones button{border:1.5px solid var(--rule);border-radius:99px;padding:7px 13px;font-size:14px;font-weight:600}
 .papel .opciones button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+/* Patrimonio */
+.comp{display:flex;gap:2px;height:12px}
+.comp i{display:block;min-width:3px;border-radius:3px}
+.comp i:first-child{border-radius:6px 3px 3px 6px}
+.comp i:last-child{border-radius:3px 6px 6px 3px}
+.comp i:only-child{border-radius:6px}
+.linea .l .clave{display:inline-block;flex:none;min-width:0;width:9px;height:9px;border:0;border-radius:3px;margin-right:8px;transform:none}
+.linea .l small{color:var(--muted);font-size:12.5px}
+.lista{background:var(--paper);border-radius:16px;padding:2px 14px 2px 12px;display:flex;flex-direction:column}
+.fila-c{display:flex;align-items:center;gap:12px;width:100%;padding:11px 0;text-align:left}
+.fila-c+.fila-c{border-top:1px solid var(--rule)}
+.fila-c .logo{width:38px;height:38px;border-radius:10px;font-size:13px}
+.fila-c .logo img{border-radius:10px}
+.fila-c .txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.fila-c .nombre{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fila-c small{font-size:12.5px;color:var(--muted)}
+.fila-c .saldo{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15.5px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
+.fila-c .saldo.neg{color:var(--over)}
+.obj .fila.con-logo{align-items:center}
+.obj .fila.con-logo .logo{width:38px;height:38px;border-radius:10px;font-size:13px}
+.obj .fila.con-logo .logo img{border-radius:10px}
+.obj .fila.con-logo .nombre{flex:1}
 /* Ajustes: desplegable bajo el engranaje */
 .menu{position:absolute;top:calc(100% - 2px);right:0;z-index:6;box-sizing:border-box;width:min(330px,100%);background:var(--paper);border:1.5px solid var(--rule);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:4px 16px;display:flex;flex-direction:column}
 .menu>*+*{border-top:1px solid var(--rule)}
@@ -353,17 +380,19 @@ dialog.candado::backdrop{background:var(--bg)}
     <section class="vista" id="v-movimientos" hidden></section>
     <section class="vista" id="v-presupuestos" hidden></section>
     <section class="vista" id="v-ahorro" hidden></section>
+    <section class="vista" id="v-patrimonio" hidden></section>
   </main>
 </div>
 
 <button class="fab" id="nuevo" type="button">+ Añadir gasto</button>
 <nav class="tabs" aria-label="Secciones">
   <div>
-    <button type="button" data-tab="cuentas">Cuentas</button>
-    <button type="button" data-tab="resumen">Resumen</button>
-    <button type="button" data-tab="movimientos">Movimientos</button>
-    <button type="button" data-tab="presupuestos">Presupuestos</button>
-    <button type="button" data-tab="ahorro">Ahorro</button>
+    <button type="button" data-tab="cuentas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></button>
+    <button type="button" data-tab="resumen"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="8" width="4" height="12" rx="1"/></svg><span>Resumen</span></button>
+    <button type="button" data-tab="movimientos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg><span>Movimientos</span></button>
+    <button type="button" data-tab="presupuestos"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span>Presupuestos</span></button>
+    <button type="button" data-tab="ahorro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2z"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><path d="M16 11h.01"/></svg><span>Ahorro</span></button>
+    <button type="button" data-tab="patrimonio"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v4c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 10v4c0 1.66 3.13 3 7 3s7-1.34 7-3v-4"/><path d="M5 14v4c0 1.66 3.13 3 7 3s7-1.34 7-3v-4"/></svg><span>Patrimonio</span></button>
   </div>
 </nav>
 
@@ -579,6 +608,20 @@ dialog.candado::backdrop{background:var(--bg)}
   function tieneSaldo(c) { return typeof c.saldo === 'number'; }
   function cuentasOrdenadas() {
     return S.cuentas.slice().sort(function (a, b) { return (a.orden || 0) - (b.orden || 0) || a.nombre.localeCompare(b.nombre); });
+  }
+  /* Logo de cada banco: una imagen para los que hay; para el resto, sus iniciales. */
+  var LOGOS = [
+    ['santander', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAMAAAAOusbgAAAAYFBMVEX//////v7//f3//Pz/+/v/+fn/9PT/6ur/4uL/3Nz/1dX/zc3/vr7/sLD/oaH/lpb/hIT/b2//X1//T0//Q0P/NDT/JSX/GRn/EBD/Cgr/Bgb/BAT/AwP/AgL/AQH/AAAs/UmtAAAEj0lEQVR42u1ZaXPiMAy1nQPIQQ5yx7b+/79cyU62bFuSDZDwxW86dIamfuh6kgxjDg4ODg4ODg4ODg4OB8Jj2YWJT/Dm+hPEHouhO3+AWLDqI8Qei3o1xvj7+MyCATLuH09cIvHtE66uYNRDxMUHcktKKA8PMlksQY3J0cweuxEx1IHHj/Qz6RYS40/BjktsbixO0V7QUh7nbM4iji+nFjQgeXti/KDoFhW+UCGPQMwVPyTM5OObIY6VQpOR/ZAwcx42iogxwyivDfP1AGafXQEqiqrgsZRkslZdtL90op0ampCYp4qimqrDvcPMWdCA1AlHX3MR1FRSh4SZs3OLXclKtMCebJyNzOnO1UxcoHQfkcnIdcUWRTWl29O+fcoQa0kFxU2qFaaYjXR6O7u6Q8GSUwVxL6hsgtEYJPZOLgVKtXayFRRzZUzeuTVTOZmuVPmebRbJQAmm9bDvkO3jkCfvK8jHah7NG/muJUVB1tr4NrNh9q10Sqtne/q6MCZrOSRTNV86dDb2x3A3ZjpX8EtvupKCzs7zvpFOTXvFLsTc8+dlba7d5kT5xEWIma5xIhA7DGCeNw1bVqKn5lAZJtoqpKKPYR58I7dZVII4ry6ki6henZokuqQEw4RDOdOyveVJSNxvKitBxsZFg0w2kY1Eg2XO7Eww6RdAU6bILcR7aM9ZTXk8yCYUVjUmidZqIKWcJBtHThKxpohepyYnR0VHhyoKam7yGPNslmicAQQnFyhrsaLn+luCyc5fKlp2KXp0qT12MpDePzXzDJBT4qUzseHGl1vEXlBQjwU5WmtaLkwGBpNEx7aaterPLECLJXxBo6B0efBs10APxhhbqe+OlF8SfZ1rqmABz/8hNm9DHT3HzDnLhjtr5wPTmbk0ZFi/AU2647/PgR6hS59pG8hb0Kzx/Tw9dWLSK03bk5Yxt+sMfP+M6rrdZm5WlJ+n0Sw7d2KbUQoSVC7180kcF4btG50p1V947zqx3c2RMjq16jdi/Cvq91aT0we8XysLDh9gZo+s/tXgSVM3ImweHYaB76Zq5qZbaAD96FE9RBuJrw95TSIb6ZzHIL30aLGRuFo4zXjQ9IZYaliE0vVG4g6WjqQwe9gOFwIyo99IvHwaCiVtppzVIFeIYSPxigtx+BAev+vDD9FtJF7zIU233jrx9hiXKydq1Z05F2uupg6+DYledXbBcNJdfgw/3mWrgvzsN9+d2J6mOl7K/nxzk7h0ejnKGuKwXX5mJKXZ3CSuD8V6dmO6kggSnrkOoildLdqjl0UGBuieuudEJVZrcV76WOjnJ78r8VnSLDWAJXuRFm7nZ6c9j51KoC8AtoImpi5jz99N4D8mtZ1WN0ChtX1xfmmZwMlLXGl9Gf+XW1Ep9GXEXr2Kof03KTsqDqnWmq+9VG3yyzs2RnOFd86qzh49/squ8Q9mYcONLQnetahyc8z5WtbD3+S5x9+8b6ucWJn/vmsnYc7iUZrf6vZngem+qcosef+NgOW22SJOUXLNi/JmUZZFlsaXcNqlj/wSysHBwcHBwcHBwcHB4TD8Ad3GB3UOwbIoAAAAAElFTkSuQmCC'],
+    ['revolut', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAMAAAAOusbgAAAAYFBMVEX////+/v79/f38/Pz7+/v6+vr39/fu7u7a2trJycnGxsbDw8O8vLyrq6udnZ2RkZF9fX1iYmJFRUU1NTU0NDQwMDAqKionJyceHh4TExMICAgEBAQDAwMCAgIBAQEAAACLVbQiAAADWElEQVR42u2a23KjMAyGbcwpacqxJIAPev+3XLObSTCBxtQye1H/V52Mp99YRvIvASFBQUFBQUFBQUFBv0XFIBW8k+qbusj1akbRwB1IsNPQFJlGY4FbZQNWUkzL+jJFI39Z71gJAdBdSEQPBmtJja4IiQ4Ha7SEOiX0eDAoDk2CEe29YABNxkir/WBNrhCe7R+AdbQv7uRWcvleZnGTcEudj7mz26WQZrBLEjuCL+3tvXqu0fMtqyGj9ICbJM3LK6hZvAUUrlu2Pau0mpOFap3rFzO0/t9opLdXSDHb85jjVM4nY+v3hFSzc0aI9fkyV7ZNZsn1mfMcakdwZaZNv/20xqTUvMeOG8er4qq4mgk+NmtSRPMR1KOG9I6Rbs2SKc+bYEri22Ox0rHBrdXbYE1uHo+XguE4MKHtfwFTkg3zM06PAjN6ea6V0JGjwDGpnxVE6Dxmx4ATcpbScCHJEWBdMbPbbKn8JuEdwJTFc7FY/5Z3Brd3NbmWO87KYW4FEPzeCljnTWGqagaYr1OKO9+KK+CINiumSxmeq3a2mWuhTgbBxVycK7N3HHMa+QD335ttFEf/AzCHNnbvYfaDBfQYfms3WMBwwvB5e8Ec+hPKOGIfWCfVV+7cvewFq6mBqrHGL5ZgJafRCzQfBMvHrxeQ1RnU2Hwijtg2SiZfTtf6upxGe3htyxqY5IOUZgpVf5012lhvI9SMfJpbVmrIowS3SVu9jyd7xc0tdymj/sGUpVeQy3sh9g/Wz9CJGzewJn8S5h9stob3sYf7HWzjueJZo/RoTOMDwBHNeoU+Y7JxmYxcFjkl+MlvAXm0LNUyp24ZXk5tg7Wrb81jxjCXNob+tXRi5tR3nQQjxSKn5JD7vBaNznRxzC1j1D+YRkaLeL+nYv9g/ffZLJ1KYAzJLbrFl5ySqs+iyD+YxtRT6XzXH0f0NadQSufbxnyyI4tjHk+eWpjXaY8HO/IeTFnSLe1I7R5sixmILp2j8QJIYZROm+GLFztiNfUxhnr3nNKJ5h+sS2eP7Trt5lzajiixsCPnQ4aosfEO5t/7RbeB9eLjhK1XA5RF7fKYayfw8nOMrTnDZEfAyCkYnMDGBygSmnTr9Y8unca3KnIsSVBQUFBQUFBQUNBv0R9GW0Y4c60XYwAAAABJRU5ErkJggg=='],
+    ['trade', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAMAAAAOusbgAAAAYFBMVEX////+/v79/f38/Pz7+/v6+vr5+fn29vbp6enb29vLy8u5ubmkpKSRkZGIiIh+fn5nZ2dOTk4+Pj4xMTEiIiIUFBQMDAwJCQkHBwcGBgYFBQUEBAQDAwMCAgIBAQEAAACYvCEGAAAE6klEQVR42u1Z2XLjOAy0eOiwZOu+eOn//3IBkM5mYtdMSfKu54GdqtiOGTYBUGQ3eblEREREREREREREREREvB8Jk2nKk9+14KmAF5lf722dnWQLLwkT/h0TDD59p2ehheT4mpe3pt8A1TlezlgSeNLi1twLjJwL+HnQMhgKT4g9u9YtkVq92PspYswu9snzsu4H6HJoqxz/noYEXGSW0hgyGFY/Qgu9aLs5tZ0ghsgwVIElGxcMZF63TY1NidycY/6p5llRNf3koMUyL6uC1yPECUuwpEyKR8kwDoDS1mptNMZdE7dPb1l3voGzymrl3+4nZkJwJmmiZI954gDbF/yHri4zXlR1uzw1OEgsJU0UyF6Hoc6z+rVPhMZ8Tl2HVXersk8NDhAn+BxCyUZM6TrPizFP3Vpt7DzTu2V+/voYMS/vva+TNVBTu9lXHW/GaaVW47bXOEBcfi/kYRwgvrtRneI8TLzNevsMsXWfIt4icST+i4m3TxGr5UPEy2w/QAxqANag2zuJ3fanVc0aRfvp0ObvIbYoe1alDGzF5sVi7qxzxph1I0HYVPluhfeS2GltpxDsuuhnyeH0oigbU1dXBWp5r2POEDvQGyR3xvZW3rqJZJ/7Nb0+BXZoqiuSJmkWlPYRYqynC6pxGnrQlahkeXEn9ey53aOm2zh0nhQkdyqZCGp7PzEoG7MuWDI9dE1ZPJwM/r7WKANBGUF+sfHUt3dPihpVcClSCUM8ROygW0zw2DUVkaZSJuSZEtTbWYm610GsamjvXt+nWFX4LRjJ8WL35EKN55M91tUV+xSZTCES9mVqMoldg9AH0oL8YSpTLoOTFNdb10/DdXfEiHlsPelFokGj3EGgOSY05UJSBXP6eEkz/IvAAST5tWpHnP9u95J5Haahu5VpMIvAAROFvGJ57ybwLkCGMYfHJYHvIVxkBdJmCOIX0rbbOxWlt4MUVSJ8bGXdhj5dW1/xgUlDyaEd5uUajIcFSpzvdr+F4ReeSc7ZwwKT6Z1o5YCJvlpcmW75v3Mch9p0g/ZmxirvPPYTQywc6xpIq24gswirlfXmTOGTPfR+UWQwx/ph9maSfEUwAgciZmC1mSdthvBMm19WM4thb2NTQdVH4jHmpyY+QCy9065pcQTLq/SLHUMvYShGQ4sXq7s9cCIABtXPJDDiRr8yURbiA4e+wNYB67h5tZ3tJ85bKplRIXuvNuAwFvcbZ7ef+Ab/FObJKRWyX3OB5X6DeTpAvKlPEbt36Gr7KUEfiSPxf2ZTP0Ws588QOz25/5v4a+Mo30KMcgY2QrXSHvjqJMziZolnn5RpEIX8LcRam4nOaddp1j+skx+ZmZcFJYMae/AA4usa5RyxWfA4XPcdHuzO6nnTdGpaySuCbUu+nXqfIH7s9mMLtg3vRAZvhp9b9M0NRfeFo++Q4iixMaClgt6agbRIwxUTKKORvgfhY1d/tL0NQEqyE0Qx3WnsdqkPYqOWmS5ewGl7Us4FS/C6CzRt1U50a0AXLyN4xZwMjNgd5s/9GFQk9knzJPOBPPwumG4sYnEn4zB0wTczkcoTrIDarvRMmK4JphfmiUBj8XV54N/Lsm6qnJOjSBgiOUVcPeZJKJn3KcnPCxP2SIA4yfeFrMaSoaoXf7g6FXjm8CbWiIiIiIiIiIiIiIiIiL8D/wBQDqAOiNHfvwAAAABJRU5ErkJggg==']
+  ];
+  function logo(c, color) {
+    var n = norm(c.nombre + ' ' + String(c.id).replace(/-/g, ' '));
+    var l = LOGOS.find(function (x) { return n.indexOf(x[0]) > -1; });
+    var p = norm(c.nombre).replace(/[^a-z0-9 ]/g, '').split(' ').filter(Boolean);
+    var letras = ((p[0] || '?').charAt(0) + (p[1] ? p[1].charAt(0) : (p[0] || '').charAt(1))).toUpperCase();
+    return '<span class="logo' + (l ? '' : ' letras') + '" aria-hidden="true">' + (l ? '<img src="' + l[1] + '" alt="">' : esc(letras)) +
+      (color ? '<i class="punto" style="background:' + color + '"></i>' : '') + '</span>';
   }
   /* De qué cuenta sale un gasto: la elegida a mano o, si no, la que tenga esa tarjeta. */
   function cuentaDe(g) {
@@ -919,7 +962,7 @@ dialog.candado::backdrop{background:var(--bg)}
   /* Gráfico circular del reparto del saldo. Solo entran las cuentas con saldo positivo;
      el color va con la cuenta (por su orden) y a partir de la séptima se agrupan en "Otras". */
   var ROSCO_MAX = 6;
-  function rosco(filas, total) {
+  function rosco(filas, total, sinInv) {
     var RAD = 82, ANCHO = 18, LARGO = 2 * Math.PI * RAD, HUECO = 2.2, segs = [], color = {}, otras = 0;
     filas.forEach(function (f, i) {
       var v = tieneSaldo(f.c) ? f.s.saldo : 0;
@@ -949,7 +992,7 @@ dialog.candado::backdrop{background:var(--bg)}
       '<g transform="rotate(-90 100 100)">' + arcos + toques + '</g></svg>' +
       '<div class="centro"><div class="eyebrow">' + esc(sel ? sel.nombre : 'Saldo total') + '</div>' +
       '<div class="cifra' + (!sel && total < 0 ? ' neg' : '') + '" style="font-size:' + cuerpo + 'px">' + esc(cifra) + '</div>' +
-      '<div class="sub">' + (sel ? pct(sel.v) + ' del total' : n + (n === 1 ? ' cuenta' : ' cuentas')) + '</div></div></div>';
+      '<div class="sub">' + (sel ? pct(sel.v) + ' del total' : sinInv ? 'Sin inversiones' : n + (n === 1 ? ' cuenta' : ' cuentas')) + '</div></div></div>';
     return { html: html, color: color };
   }
 
@@ -958,19 +1001,23 @@ dialog.candado::backdrop{background:var(--bg)}
     if (S.sinDatos) { el.innerHTML = SIN_DATOS; return; }
     if (!S.listoC || !S.listoG) { el.innerHTML = vistaCargando('Cargando tus cuentas…'); return; }
     if (el.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;
-    var cuentas = cuentasOrdenadas(), total = 0, sinSaldo = 0, h = '';
+    // Inicio es el dinero del día a día: las cuentas de inversión se ven en Patrimonio.
+    var todas = cuentasOrdenadas(), cuentas = todas.filter(function (c) { return c.rol !== 'inversion'; }), total = 0, sinSaldo = 0, h = '';
     var filas = cuentas.map(function (c) { var s = saldoDe(c); if (tieneSaldo(c)) total += s.saldo; else sinSaldo++; return { c: c, s: s }; });
-    if (!cuentas.length) {
-      h += '<div class="vacio"><strong>Aún no hay cuentas</strong>Añade cada cuenta con su saldo de hoy y sus tarjetas. Desde ese momento, cada pago se resta de su cuenta.</div>';
+    if (!todas.length) {
+      h += '<div class="vacio"><strong>Aún no hay cuentas</strong>Añade cada cuenta con su saldo de hoy y sus tarjetas. Desde ese momento, cada pago se resta de su cuenta.</div>' +
+        '<div><button class="btn" type="button" data-nueva-cuenta>Añadir cuenta</button></div>';
     } else {
-      var R = rosco(filas, total);
-      h += '<section class="reparto">' + R.html +
-        (sinSaldo ? '<p class="nota">' + (sinSaldo === 1 ? 'Falta el saldo de 1 cuenta; no entra en el total.' : 'Falta el saldo de ' + sinSaldo + ' cuentas; no entran en el total.') + '</p>' : '') +
-        '<div class="ctas">';
+      var R = rosco(filas, total, todas.length > cuentas.length);
+      if (cuentas.length) h += '<section class="reparto">' + R.html +
+        (sinSaldo ? '<p class="nota">' + (sinSaldo === 1 ? 'Falta el saldo de 1 cuenta; no entra en el total.' : 'Falta el saldo de ' + sinSaldo + ' cuentas; no entran en el total.') + '</p>' : '') + '</section>';
+      h += '<section class="sec"><header class="centro"><h2>Tus cuentas</h2><button class="flecha" type="button" data-nueva-cuenta aria-label="Añadir cuenta">+</button></header>';
+      if (!cuentas.length) h += '<div class="vacio"><strong>Solo tienes inversiones</strong>Están en la pestaña Patrimonio. Añade aquí tus cuentas del día a día.</div>';
+      h += '<div class="ctas">';
       filas.forEach(function (f, i) {
         var c = f.c, s = f.s, ok = tieneSaldo(c), color = R.color[c.id];
         h += '<button class="cuenta' + (S.segSel === c.id || (S.segSel === '_otras' && color === 'var(--s-otras)') ? ' marcada' : '') + '" type="button" data-cuenta="' + esc(c.id) + '">' +
-          '<i class="punto' + (color ? '' : ' sin') + '"' + (color ? ' style="background:' + color + '"' : '') + '></i>' +
+          logo(c, color) +
           '<span class="nombre">' + esc(c.nombre) + '</span>' +
           (ok ? '<span class="saldo' + (s.saldo < 0 ? ' neg' : '') + '">' + esc(eur(s.saldo)) + '</span>' : '<span class="pill none">Sin saldo</span>') + '</button>';
       });
@@ -983,7 +1030,7 @@ dialog.candado::backdrop{background:var(--bg)}
         '<div class="movs">' + dudas.slice(0, 10).map(function (g) { return filaMov(g, true); }).join('') + '</div></section>';
     }
     var pend = {}, orden = [];
-    if (cuentas.length) S.todos.forEach(function (g) {
+    if (todas.length) S.todos.forEach(function (g) {
       if (g.tarjeta && !cuentaDe(g)) {
         if (!pend[g.tarjeta]) { pend[g.tarjeta] = { n: 0, suma: 0 }; orden.push(g.tarjeta); }
         pend[g.tarjeta].n++; pend[g.tarjeta].suma += Number(g.importe) || 0;
@@ -995,11 +1042,10 @@ dialog.candado::backdrop{background:var(--bg)}
       orden.forEach(function (k, i) {
         h += '<div class="pend"><strong>' + esc(k) + '</strong><small>' + pend[k].n + (pend[k].n === 1 ? ' pago · ' : ' pagos · ') + esc(eur(pend[k].suma)) + '</small>' +
           '<select class="sel" id="pend-' + i + '" data-tarjeta="' + esc(k) + '" aria-label="Cuenta para ' + esc(k) + '"><option value="">Asignar a…</option>' +
-          cuentas.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.nombre) + '</option>'; }).join('') + '</select></div>';
+          todas.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.nombre) + '</option>'; }).join('') + '</select></div>';
       });
       h += '</div></section>';
     }
-    h += '<div><button class="btn" type="button" data-nueva-cuenta>Añadir cuenta</button></div>';
     el.innerHTML = h;
   }
 
@@ -1063,6 +1109,28 @@ dialog.candado::backdrop{background:var(--bg)}
       '<text x="22" y="134" text-anchor="start">' + esc(fecha(pts[0].dia)) + '</text><text class="hoy" x="318" y="134" text-anchor="end">hoy</text></svg>';
     return { svg: o, desde: fecha(pts[0].dia), cambio: ult.v - pts[0].v };
   }
+  /* Una cuenta de inversión: valor, lo aportado, lo ganado y sus fondos. */
+  function tarjetaInversion(c, anio, conLogo) {
+    var ok = tieneSaldo(c), v = ok ? saldoDe(c).saldo : 0, ap = aportadoDe(c), esteAnio = 0, h = '';
+    for (var m = 1; m <= 12; m++) esteAnio += flujoMes(anio + '-' + dos(m)).porCuenta[c.id] || 0;
+    h += '<button class="obj" type="button" data-cuenta="' + esc(c.id) + '"><span class="fila' + (conLogo ? ' con-logo' : '') + '">' + (conLogo ? logo(c) : '') +
+      '<span class="nombre">' + esc(c.nombre) + '</span><span class="cifra">' + (ok ? esc(eur(v)) : 'Sin valor') + '</span></span>';
+    if (ok && ap !== null && ap > 0) {
+      var gan = v - ap;
+      h += '<span class="pie"><span>Aportado: <strong>' + esc(eur(ap)) + '</strong></span><span class="' + (gan < 0 ? 'menos' : 'mas') + '">' + esc(conSigno(gan) + ' (' + (gan < 0 ? '−' : '+') + Math.abs(gan / ap * 100).toFixed(1).replace('.', ',') + ' %)') + '</span></span>';
+    } else h += '<span class="pie"><span>' + (fondosDe(c.id).length ? 'Valor de tus fondos' : ok ? 'Valor que has anotado' : 'Anota lo que vale hoy') + '</span><span class="accion">' + (ok ? 'Añadir lo aportado' : 'Poner valor') + '</span></span>';
+    if (esteAnio) h += '<span class="pie"><span>Aportado en ' + anio + '</span><span>' + esc(conSigno(esteAnio)) + '</span></span>';
+    var fs = fondosDe(c.id);
+    if (fs.length) {
+      h += '<span class="fondos">' + fs.map(function (f) {
+        var vf = valorFondo(f);
+        return '<span class="fondo"><span class="f-n">' + esc(f.nombre || f.id) + '</span><span class="f-v">' + (vf === null ? 'Sin precio' : esc(eur(vf))) + '</span>' +
+          '<span class="f-d">' + esc(typeof f.participaciones === 'number' ? numero(f.participaciones, 2) + ' part.' : 'Sin participaciones') +
+          (typeof f.precio === 'number' ? ' × ' + esc(precioTxt(f.precio)) + ' €' + (f.fechaPrecio ? ' · precio del ' + esc(diaCorto(f.fechaPrecio)) : '') : '') + '</span></span>';
+      }).join('') + '</span>';
+    }
+    return h + '</button>';
+  }
   function pintarAhorro() {
     var el = $('#v-ahorro');
     if (S.sinDatos) { el.innerHTML = ''; return; }
@@ -1070,7 +1138,7 @@ dialog.candado::backdrop{background:var(--bg)}
     var cuentas = cuentasOrdenadas(), h = '';
     var deAhorro = cuentas.filter(function (c) { return c.rol === 'ahorro'; }), deInv = cuentas.filter(function (c) { return c.rol === 'inversion'; });
     if (!cuentas.length) {
-      el.innerHTML = '<div class="vacio"><strong>Primero, tus cuentas</strong>Añade tus cuentas en la pestaña Cuentas y vuelve aquí.</div>'; return;
+      el.innerHTML = '<div class="vacio"><strong>Primero, tus cuentas</strong>Añade tus cuentas en la pestaña Inicio y vuelve aquí.</div>'; return;
     }
     if (!deAhorro.length && !deInv.length) S.papeles = true;
     if (S.papeles) {
@@ -1111,26 +1179,7 @@ dialog.candado::backdrop{background:var(--bg)}
     if (deInv.length) {
       var anio = S.mes.slice(0, 4);
       h += '<section class="sec"><header><h2>Inversión</h2></header><div class="objs">';
-      deInv.forEach(function (c) {
-        var ok = tieneSaldo(c), v = ok ? saldoDe(c).saldo : 0, ap = aportadoDe(c), esteAnio = 0;
-        for (var m = 1; m <= 12; m++) esteAnio += flujoMes(anio + '-' + dos(m)).porCuenta[c.id] || 0;
-        h += '<button class="obj" type="button" data-cuenta="' + esc(c.id) + '"><span class="fila"><span class="nombre">' + esc(c.nombre) + '</span><span class="cifra">' + (ok ? esc(eur(v)) : 'Sin valor') + '</span></span>';
-        if (ok && ap !== null && ap > 0) {
-          var gan = v - ap;
-          h += '<span class="pie"><span>Aportado: <strong>' + esc(eur(ap)) + '</strong></span><span class="' + (gan < 0 ? 'menos' : 'mas') + '">' + esc(conSigno(gan) + ' (' + (gan < 0 ? '−' : '+') + Math.abs(gan / ap * 100).toFixed(1).replace('.', ',') + ' %)') + '</span></span>';
-        } else h += '<span class="pie"><span>' + (fondosDe(c.id).length ? 'Valor de tus fondos' : ok ? 'Valor que has anotado' : 'Anota lo que vale hoy') + '</span><span class="accion">' + (ok ? 'Añadir lo aportado' : 'Poner valor') + '</span></span>';
-        if (esteAnio) h += '<span class="pie"><span>Aportado en ' + anio + '</span><span>' + esc(conSigno(esteAnio)) + '</span></span>';
-        var fs = fondosDe(c.id);
-        if (fs.length) {
-          h += '<span class="fondos">' + fs.map(function (f) {
-            var vf = valorFondo(f);
-            return '<span class="fondo"><span class="f-n">' + esc(f.nombre || f.id) + '</span><span class="f-v">' + (vf === null ? 'Sin precio' : esc(eur(vf))) + '</span>' +
-              '<span class="f-d">' + esc(typeof f.participaciones === 'number' ? numero(f.participaciones, 2) + ' part.' : 'Sin participaciones') +
-              (typeof f.precio === 'number' ? ' × ' + esc(precioTxt(f.precio)) + ' €' + (f.fechaPrecio ? ' · precio del ' + esc(diaCorto(f.fechaPrecio)) : '') : '') + '</span></span>';
-          }).join('') + '</span>';
-        }
-        h += '</button>';
-      });
+      deInv.forEach(function (c) { h += tarjetaInversion(c, anio, false); });
       h += '</div></section>';
     }
 
@@ -1140,12 +1189,51 @@ dialog.candado::backdrop{background:var(--bg)}
       : '<div class="vacio"><strong>Aún no hay traspasos</strong>Aparecerán cuando una salida de tu cuenta de gasto se identifique como traspaso a una cuenta de ahorro o de inversión.</div>';
     h += '</section>';
 
+    if (!S.papeles) h += '<div><button class="enlace" type="button" data-papeles="1">Cambiar para qué es cada cuenta</button></div>';
+    el.innerHTML = h;
+  }
+
+  /* ---------- pestaña Patrimonio: todo lo que tienes, hoy ---------- */
+  var GRUPOS = [['gasto', 'Día a día', 'var(--s3)'], ['conjunta', 'Cuenta conjunta', 'var(--s4)'], ['ahorro', 'Ahorro', 'var(--s1)'], ['inversion', 'Inversión', 'var(--s2)']];
+  function pintarPatrimonio() {
+    var el = $('#v-patrimonio');
+    if (S.sinDatos) { el.innerHTML = ''; return; }
+    if (!S.listoC || !S.listoG) { el.innerHTML = vistaCargando('Cargando tu patrimonio…'); return; }
+    var cuentas = cuentasOrdenadas(), h = '';
+    if (!cuentas.length) { el.innerHTML = '<div class="vacio"><strong>Primero, tus cuentas</strong>Añade tus cuentas en la pestaña Inicio y vuelve aquí.</div>'; return; }
+    var total = 0, sinSaldo = 0, grupos = GRUPOS.map(function (g) { return { rol: g[0], nombre: g[1], color: g[2], v: 0, n: 0 }; });
+    var filas = cuentas.map(function (c) {
+      var g = grupos.find(function (x) { return x.rol === c.rol; }) || grupos[0], ok = tieneSaldo(c), s = ok ? saldoDe(c).saldo : 0;
+      if (ok) { g.v += s; g.n++; total += s; } else sinSaldo++;
+      return { c: c, g: g, ok: ok, s: s };
+    });
+    var con = grupos.filter(function (g) { return g.n > 0; }), pos = con.reduce(function (a, g) { return a + Math.max(g.v, 0); }, 0);
+    var pct = function (v) { var p = v / pos * 100; return !(pos > 0) || v <= 0 ? '' : (p < 1 ? '<1' : String(Math.round(p))) + ' %'; };
     var e = lineaSaldo();
-    h += '<section class="sec"><header><h2>Evolución del saldo</h2><span class="nota">Todas las cuentas</span></header>';
+    h += '<div class="ticket"><div class="eyebrow"><span>Patrimonio</span><span>Hoy</span></div><div class="total' + (total < 0 ? ' neg' : '') + '">' + esc(eur(total)) + '</div>';
+    if (e && Math.abs(e.cambio) >= 0.005) h += '<div class="pie"><span class="pill ' + (e.cambio < 0 ? 'over' : 'ok') + '">' + esc(conSigno(e.cambio)) + ' desde el ' + esc(e.desde) + '</span></div>';
+    if (pos > 0 && con.length > 1) h += '<div class="comp" role="img" aria-label="' + esc('Reparto: ' + con.map(function (g) { return g.nombre + ' ' + eur(g.v) + (pct(g.v) ? ' (' + pct(g.v) + ')' : ''); }).join(', ')) + '">' +
+      con.map(function (g) { return g.v > 0 ? '<i style="flex:' + (g.v / pos).toFixed(4) + ' 1 0;background:' + g.color + '"></i>' : ''; }).join('') + '</div>';
+    h += '<div class="lineas">' + con.map(function (g) {
+      return '<div class="linea"><span class="l"><i class="clave" style="background:' + g.color + '"></i>' + esc(g.nombre) + (con.length > 1 && pct(g.v) ? ' <small>' + pct(g.v) + '</small>' : '') + '</span><i></i><span class="v">' + esc(eur(g.v)) + '</span></div>';
+    }).join('') + '</div></div>';
+    if (sinSaldo) h += '<p class="nota">' + (sinSaldo === 1 ? 'Falta el saldo de 1 cuenta; no entra en el total.' : 'Falta el saldo de ' + sinSaldo + ' cuentas; no entran en el total.') + '</p>';
+
+    var deInv = filas.filter(function (f) { return f.c.rol === 'inversion'; }), resto = filas.filter(function (f) { return f.c.rol !== 'inversion'; });
+    if (deInv.length) {
+      var anio = claveMes(new Date()).slice(0, 4);
+      h += '<section class="sec"><header><h2>Inversiones</h2></header><div class="objs">' + deInv.map(function (f) { return tarjetaInversion(f.c, anio, true); }).join('') + '</div></section>';
+    }
+    if (resto.length) {
+      h += '<section class="sec"><header><h2>Cuentas</h2></header><div class="lista">' + resto.map(function (f) {
+        return '<button class="fila-c" type="button" data-cuenta="' + esc(f.c.id) + '">' + logo(f.c) + '<span class="txt"><span class="nombre">' + esc(f.c.nombre) + '</span><small>' + esc(f.g.nombre) + '</small></span>' +
+          (f.ok ? '<span class="saldo' + (f.s < 0 ? ' neg' : '') + '">' + esc(eur(f.s)) + '</span>' : '<span class="pill none">Sin saldo</span>') + '</button>';
+      }).join('') + '</div></section>';
+    }
+    h += '<section class="sec"><header><h2>Evolución</h2><span class="nota">Todo lo que tienes</span></header>';
     h += e ? '<div class="graf">' + e.svg + '</div><div class="pie"><span>Desde el ' + esc(e.desde) + ': ' + esc(conSigno(e.cambio)) + '</span><span>Una foto del saldo cada día</span></div>'
       : '<div class="vacio"><strong>Empieza a dibujarse mañana</strong>La app guarda el saldo de cada día; con dos días ya hay línea.</div>';
     h += '</section>';
-    if (!S.papeles) h += '<div><button class="enlace" type="button" data-papeles="1">Cambiar para qué es cada cuenta</button></div>';
     el.innerHTML = h;
   }
 
@@ -1153,24 +1241,24 @@ dialog.candado::backdrop{background:var(--bg)}
     S.movs = S.todos.filter(function (g) { return (g.mes || String(g.fecha).slice(0, 7)) === S.mes; });
     S.gastos = S.movs.filter(function (g) { return tipoDe(g) === 'gasto'; });
     var D = calcular();
-    var enCuentas = S.tab === 'cuentas';   // el saldo es de hoy: ahí el mes no pinta nada
-    $('#mes-txt').textContent = enCuentas ? 'Mis cuentas' : mayus(nombreMes(S.mes));
+    var conAhorro = DB.moderno();   // hasta que el script de la hoja se actualiza, estas pestañas no se enseñan
+    if (!conAhorro && (S.tab === 'ahorro' || S.tab === 'patrimonio')) S.tab = 'cuentas';
+    var enCuentas = S.tab === 'cuentas' || S.tab === 'patrimonio';   // el saldo es de hoy: ahí el mes no pinta nada
+    $('#mes-txt').textContent = S.tab === 'cuentas' ? 'Inicio' : S.tab === 'patrimonio' ? 'Patrimonio' : mayus(nombreMes(S.mes));
     $('#mes-ant').hidden = enCuentas; $('#mes-sig').hidden = enCuentas;
     $('#mes-hoy').hidden = enCuentas || S.mes === claveMes(new Date());
     $('#aviso-ejemplo').hidden = !S.gastos.some(function (g) { return g.ejemplo; });
     $('#aviso-error').hidden = !S.error;
     $('#aviso-error-txt').textContent = S.error;
-    var conAhorro = DB.moderno();   // hasta que el script de la hoja se actualiza, la pestaña no se enseña
-    if (!conAhorro && S.tab === 'ahorro') S.tab = 'cuentas';
-    document.querySelector('.tabs').classList.toggle('cuatro', !conAhorro);
     document.querySelector('.tabs [data-tab="ahorro"]').hidden = !conAhorro;
-    ['cuentas', 'resumen', 'movimientos', 'presupuestos', 'ahorro'].forEach(function (t) {
+    document.querySelector('.tabs [data-tab="patrimonio"]').hidden = !conAhorro;
+    ['cuentas', 'resumen', 'movimientos', 'presupuestos', 'ahorro', 'patrimonio'].forEach(function (t) {
       $('#v-' + t).hidden = S.tab !== t;
       var b = document.querySelector('.tabs [data-tab="' + t + '"]');
       if (S.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
-    $('#nuevo').hidden = S.sinDatos || S.tab === 'ahorro';   // en Ahorro no se apuntan gastos y el botón taparía las gráficas
-    pintarCuentas(); pintarResumen(D); pintarMovimientos(D); pintarPresupuestos(D); pintarAhorro();
+    $('#nuevo').hidden = S.sinDatos || S.tab === 'ahorro' || S.tab === 'patrimonio';   // ahí no se apuntan gastos y el botón taparía las gráficas
+    pintarCuentas(); pintarResumen(D); pintarMovimientos(D); pintarPresupuestos(D); pintarAhorro(); pintarPatrimonio();
   }
 
   var tToast = null;
@@ -1659,7 +1747,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.1624';
+  var VERSION = '2026-10-10.1821';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });

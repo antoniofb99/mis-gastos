@@ -79,7 +79,7 @@ async def main():
             await pg.click('[data-tab="resumen"]'); antes = await pg.inner_text("#v-resumen .total")
             await pg.click('[data-tab="cuentas"]'); await pg.click("#sync"); await pg.wait_for_timeout(400)
             s = await sal(); dudas = await pg.eval_on_selector_all("#v-cuentas .sec .mov", "e=>e.map(x=>x.querySelector('.m-n').textContent+' '+x.querySelector('.m-i').textContent)")
-            await pg.click('[data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); det = await pg.inner_text("#c-info"); await pg.click("#hc-cerrar")
+            await pg.click('#v-cuentas [data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); det = await pg.inner_text("#c-info"); await pg.click("#hc-cerrar")
             ok(s[0] == "Banco Santander=143,00\u00a0€" and dudas == ["Sin identificar 2,01\u00a0€", "Sin identificar +1,00\u00a0€"] and "Saldo según tu banco" in det, "aviso del banco: saldo del banco y dos movimientos por identificar (%s | %s)" % (s[0], dudas))
             await pg.click('[data-tab="resumen"]'); despues = await pg.inner_text("#v-resumen .total"); lineas = await pg.inner_text("#v-resumen .lineas")
             num = lambda x: float(x.replace("\u00a0€", "").replace(".", "").replace(",", "."))
@@ -92,13 +92,13 @@ async def main():
             oculto = await pg.is_hidden("#f-cat-grupo"); await pg.fill("#f-comercio", "Bizum de Sandra"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
             g1 = [x for x in bd["gastos"] if x["id"] == "gb1"][0]; s = await sal()
             ok(oculto and g1["comercio"] == "Bizum de Sandra" and g1["tipo"] == "ingreso" and g1["categoria"] == "" and await pg.locator("#v-cuentas .sec .mov").count() == 0 and s[0] == "Banco Santander=143,00\u00a0€", "identificar un ingreso: sin categoría, sigue siendo ingreso y el saldo no cambia")
-            await pg.click('[data-cuenta="banco-santander"]'); await pg.wait_for_timeout(200); fin = await pg.input_value("#c-fin")
+            await pg.click('#v-cuentas [data-cuenta="banco-santander"]'); await pg.wait_for_timeout(200); fin = await pg.input_value("#c-fin")
             await pg.fill("#c-tarjetas", "Santander, Mastercard"); await pg.click("#c-guardar"); await pg.wait_for_timeout(400)
             cs = [x for x in bd["cuentas"] if x["id"] == "banco-santander"][0]
             ok(fin == "0061" and cs["terminaEn"] == "0061" and cs["saldo"] == 143.0 and cs["fechaSaldo"] == corte, "editar la cuenta conserva las 4 cifras y el saldo del banco")
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-banco.png", full_page=True)
             # --- con el script antiguo de la hoja (no manda "saldos") la pestaña Ahorro y los papeles no se enseñan
-            await pg.click('[data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); sinrol = await pg.is_hidden("#c-rol-grupo"); await pg.click("#hc-cerrar")
+            await pg.click('#v-cuentas [data-cuenta="banco-santander"]'); await pg.wait_for_timeout(150); sinrol = await pg.is_hidden("#c-rol-grupo"); await pg.click("#hc-cerrar")
             ok(await pg.is_hidden('[data-tab="ahorro"]') and await pg.locator(".tabs button:visible").count() == 4 and sinrol, "servidor antiguo: sin pestaña Ahorro ni papeles hasta que se actualice")
             # --- gráfico circular de Cuentas ---
             centro = lambda: pg.eval_on_selector(".rosco .centro", "e => [...e.children].map(x => x.textContent)")
