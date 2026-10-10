@@ -191,16 +191,19 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .rosco .cifra.neg{color:var(--over)}
 .rosco .sub{font-size:11px;color:var(--muted)}
 .reparto>.nota{text-align:center}
-.ctas{display:flex;flex-direction:column;gap:8px}
-.cuenta{display:flex;align-items:center;gap:11px;width:100%;padding:8px 14px 8px 9px;text-align:left;background:var(--paper);border-radius:14px}
+.ctas{display:flex;flex-direction:column;gap:9px}
+.cuenta{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:8px 15px 8px 9px;text-align:left;background:var(--paper);border-radius:16px}
 .logo{flex:none;position:relative;width:36px;height:36px;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px rgba(38,37,56,.10);display:grid;place-items:center;font-size:12.5px;font-weight:800;letter-spacing:-.02em;color:#262538}
 .logo img{display:block;width:100%;height:100%;border-radius:10px}
 .logo.letras{background:var(--track);box-shadow:none;color:var(--ink)}
 .logo .punto{position:absolute;right:-4px;bottom:-4px;width:12px;height:12px;border-radius:50%;border:2px solid var(--paper)}
+.cuenta .logo{width:42px;height:42px;border-radius:12px;font-size:14px}
+.cuenta .logo img{border-radius:12px}
+.cuenta .logo .punto{width:13px;height:13px}
 .sec>header.centro{align-items:center}
 .sec>header .flecha{width:34px;height:34px}
-.cuenta .nombre{flex:1;min-width:0;font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cuenta .saldo{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
+.cuenta .nombre{flex:1;min-width:0;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cuenta .saldo{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:16px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
 .cuenta .saldo.neg{color:var(--over)}
 .cuenta.marcada{box-shadow:inset 0 0 0 2px var(--ink)}
 .cuenta.marcada .nombre{font-weight:800}
@@ -1807,7 +1810,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.2242';
+  var VERSION = '2026-10-10.2308';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });

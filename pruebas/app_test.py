@@ -128,7 +128,7 @@ async def main():
             ok(reintentos == 2 and len(antes_raro) == 2 and await sal() == antes_raro and tras == antes_raro and cache == 2 and "Webhook de gastos activo" in aviso and "última copia" in aviso and await pg.is_hidden("#aviso-error"),
                "respuesta sin datos: se conservan las cuentas, se avisa y al volver la hoja se quita el aviso (%s)" % aviso)
             # --- actualizar: ya no hay botón; se tira hacia abajo estando arriba del todo
-            n0 = llamadas.count("leer"); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); gira = await pg.evaluate("document.querySelector('#tirar').classList.contains('girando')")
+            n0 = llamadas.count("leer"); await pg.evaluate("scrollTo(0,0)"); gira = await pg.evaluate("(() => { %s; return document.querySelector('#tirar').classList.contains('girando'); })()" % TIRAR)   # en la misma pasada: el servidor de mentira responde al instante
             await pg.wait_for_timeout(500); n1 = llamadas.count("leer"); aviso_t = await pg.inner_text("#toast"); para = await pg.evaluate("document.querySelector('#tirar').classList.contains('girando')")
             await pg.evaluate("document.querySelector('.app').style.minHeight = '3000px'; scrollTo(0, 400)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(300); n2 = llamadas.count("leer")
             await pg.evaluate("document.querySelector('.app').style.minHeight = ''; scrollTo(0, 0)")
