@@ -134,12 +134,12 @@ async def main():
             await pg.evaluate("document.querySelector('.app').style.minHeight = ''; scrollTo(0, 0)")
             ok(await pg.locator("#sync").count() == 0 and gira and not para and n1 == n0 + 1 and "Datos al día" in aviso_t and n2 == n1, "actualizar: tirar hacia abajo desde arriba recarga; a mitad de página no (%s, %s, %s)" % (n0, n1, n2))
             # --- iOS a veces da menos alto que la pantalla: la página pasa a medir la pantalla entera y el menú sigue abajo
-            alto = lambda: pg.evaluate("[document.documentElement.classList.contains('hueco'), Math.round(document.documentElement.getBoundingClientRect().height - innerHeight), getComputedStyle(document.querySelector('.tabs')).bottom]")
+            alto = lambda: pg.evaluate("[document.documentElement.classList.contains('hueco'), Math.max(0, parseFloat(document.documentElement.style.getPropertyValue('--pantalla')) - innerHeight), document.documentElement.getBoundingClientRect().height >= innerHeight + 59, getComputedStyle(document.querySelector('.tabs')).bottom]")
             normal = await alto()
             await pg.evaluate("Object.defineProperty(navigator, 'standalone', { configurable: true, get: () => true }); Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight + 59 }); dispatchEvent(new Event('resize'))")
             roto = await alto()
             await pg.evaluate("Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight }); dispatchEvent(new Event('resize'))")
-            ok(normal == [False, 0, "0px"] and roto == [True, 59, "0px"] and await alto() == normal, "alto de iOS: sin el fallo todo igual; con él la página mide la pantalla entera y el menú no se mueve (%s | %s)" % (normal, roto))
+            ok(normal[:2] == [False, 0] and normal[3] == "0px" and roto == [True, 59, True, "0px"] and await alto() == normal, "alto de iOS: sin el fallo todo igual; con él la página mide la pantalla entera y el menú no se mueve (%s | %s)" % (normal, roto))
             # --- versión nueva: se carga escribiendo la página encima, sin recargar (recargar deja el hueco en iOS)
             import re as _re
             actual = open("index.html", encoding="utf-8").read(); NUEVA = "2099-01-01.0000"

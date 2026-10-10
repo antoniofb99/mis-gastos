@@ -175,30 +175,30 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .vacio strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
 
 /* Cuentas */
-.reparto{background:var(--paper);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
-.rosco{position:relative;width:186px;max-width:100%;aspect-ratio:1;margin:0 auto}
+.reparto{background:var(--paper);border-radius:16px;padding:20px 16px 18px;display:flex;flex-direction:column;gap:12px}
+.rosco{position:relative;width:250px;max-width:100%;aspect-ratio:1;margin:0 auto}
 .rosco svg{display:block;width:100%;height:100%}
 .rosco .seg.apagado{opacity:.26}
 .rosco .toque{cursor:pointer}
-.rosco .centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;pointer-events:none;padding:0 32px}
-.rosco .eyebrow{font-family:var(--font-num);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rosco .centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;pointer-events:none;padding:0 46px}
+.rosco .eyebrow{font-family:var(--font-num);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rosco .cifra{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:-.04em;line-height:1.05;white-space:nowrap}
 .rosco .cifra.neg{color:var(--over)}
-.rosco .sub{font-size:11px;color:var(--muted)}
+.rosco .sub{font-size:12.5px;color:var(--muted)}
 .reparto>.nota{text-align:center}
-.ctas{display:flex;flex-direction:column;gap:9px}
-.cuenta{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:10px 15px 10px 10px;text-align:left;background:var(--paper);border-radius:16px}
+.ctas{display:flex;flex-direction:column;gap:10px}
+.cuenta{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px 12px 12px;text-align:left;background:var(--paper);border-radius:16px}
 .logo{flex:none;position:relative;width:36px;height:36px;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px rgba(38,37,56,.10);display:grid;place-items:center;font-size:12.5px;font-weight:800;letter-spacing:-.02em;color:#262538}
 .logo img{display:block;width:100%;height:100%;border-radius:10px}
 .logo.letras{background:var(--track);box-shadow:none;color:var(--ink)}
 .logo .punto{position:absolute;right:-4px;bottom:-4px;width:12px;height:12px;border-radius:50%;border:2px solid var(--paper)}
-.cuenta .logo{width:42px;height:42px;border-radius:12px;font-size:14px}
+.cuenta .logo{width:44px;height:44px;border-radius:12px;font-size:14.5px}
 .cuenta .logo img{border-radius:12px}
-.cuenta .logo .punto{width:13px;height:13px}
+.cuenta .logo .punto{width:14px;height:14px;border-width:2.5px}
 .sec>header.centro{align-items:center}
 .sec>header .flecha{width:34px;height:34px}
 .cuenta .nombre{flex:1;min-width:0;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cuenta .saldo{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:16px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
+.cuenta .saldo{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:16.5px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
 .cuenta .saldo.neg{color:var(--over)}
 .cuenta.marcada{box-shadow:inset 0 0 0 2px var(--ink)}
 .cuenta.marcada .nombre{font-weight:800}
@@ -992,7 +992,7 @@ dialog.candado::backdrop{background:var(--bg)}
      el color va con la cuenta (por su orden) y a partir de la séptima se agrupan en "Otras". */
   var ROSCO_MAX = 6;
   function rosco(filas, total, sinInv) {
-    var RAD = 84, ANCHO = 15, LARGO = 2 * Math.PI * RAD, HUECO = 2.2, segs = [], color = {}, otras = 0;
+    var RAD = 82, ANCHO = 18, LARGO = 2 * Math.PI * RAD, HUECO = 2.2, segs = [], color = {}, otras = 0;
     filas.forEach(function (f, i) {
       var v = tieneSaldo(f.c) ? f.s.saldo : 0;
       if (!(v > 0)) return;
@@ -1014,7 +1014,7 @@ dialog.candado::backdrop{background:var(--bg)}
         '" stroke-dashoffset="' + (-pos).toFixed(2) + '"><title>' + esc(x.nombre + ': ' + eur(x.v) + ' (' + pct(x.v) + ')') + '</title></circle>';
       pos += largo;
     });
-    var cifra = eur(sel ? sel.v : total), cuerpo = Math.max(12, Math.min(22, Math.floor(118 / (cifra.length * 0.61))));
+    var cifra = eur(sel ? sel.v : total), cuerpo = Math.max(15, Math.min(30, Math.floor(160 / (cifra.length * 0.61))));
     var n = filas.length, alt = 'Reparto del saldo: ' + (segs.length ? segs.map(function (x) { return x.nombre + ' ' + eur(x.v) + ' (' + pct(x.v) + ')'; }).join(', ') : 'sin saldo que repartir') + '.';
     var html = '<div class="rosco"><svg viewBox="0 0 200 200" role="img" aria-label="' + esc(alt) + '">' +
       (segs.length ? '' : '<circle cx="100" cy="100" r="' + RAD + '" fill="none" stroke="var(--track)" stroke-width="' + ANCHO + '"/>') +
@@ -1807,7 +1807,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-10.2333';
+  var VERSION = '2026-10-10.2343';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
