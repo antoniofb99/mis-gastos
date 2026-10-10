@@ -17,13 +17,14 @@ Hoja.prototype = {
       setValues(vals) { vals.forEach((r, i) => { self.f[a-1+i] = self.f[a-1+i] || []; r.forEach((v, j) => { self.f[a-1+i][c-1+j] = limpia(v); }); }); },
       getValue() { const v = (self.f[a-1] || [])[c-1]; return v == null ? '' : v; },
       setValue(v) { self.f[a-1] = self.f[a-1] || []; self.f[a-1][c-1] = limpia(v); },
+      setFormula(v) { self.f[a-1] = self.f[a-1] || []; self.f[a-1][c-1] = v; },
       setNumberFormat() {},
     };
   },
 };
 function limpia(v) { return (typeof v === 'string' && v[0] === "'") ? v.slice(1) : v; } // el apóstrofo inicial marca texto
 const p2 = n => String(n).padStart(2, '0');
-global.SpreadsheetApp = { getActiveSpreadsheet: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n)), getSpreadsheetTimeZone: () => 'local' }) };
+global.SpreadsheetApp = { getActiveSpreadsheet: () => ({ getSheetByName: n => hojas[n] || null, insertSheet: n => (hojas[n] = new Hoja(n)), getSpreadsheetTimeZone: () => 'local', getSpreadsheetLocale: () => 'es_ES' }) };
 global.Utilities = {
   base64DecodeWebSafe: t => { if (typeof t !== 'string') throw new Error('Could not decode string.'); return Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64'); },
   newBlob: b => ({ getDataAsString: () => Buffer.from(b).toString('utf8') }),
@@ -212,15 +213,21 @@ gmailRoto = false;
 
 // ---------------------------------------------------------------- fondos de la cuenta de inversión
 ok(post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'no-es-isin', participaciones: 1 } }).ok === false, 'fondos: rechaza un ISIN que no lo es');
+const hoyFondos = (() => { const d = new Date(); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); })();
 post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'ie00byx5mx67', nombre: 'Fidelity S&P 500', cuenta: 'mi', participaciones: 100, fechaParticipaciones: '2026-10-10T16:00:00', precio: 17.13, fechaPrecio: '2026-10-08' } });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 1 && t.fondos[0].id === 'IE00BYX5MX67' && t.fondos[0].participaciones === 100 && t.fondos[0].precio === 17.13 && t.fondos[0].fechaPrecio === '2026-10-08' && ct('mi').saldo === 1713 && ct('mi').fechaSaldo === '2026-10-10T16:00:00' && ct('mi').rol === 'inversion', 'fondos: la cuenta pasa a valer participaciones x precio, con la fecha de las participaciones');
 post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'ES0165265002', nombre: 'MyInvestor Nasdaq 100', cuenta: 'mi', participaciones: 500.82, fechaParticipaciones: '2026-10-10T16:05:00' } });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 2 && t.fondos[1].precio === null && ct('mi').saldo === 1713, 'fondos: si a un fondo le falta el precio, el valor de la cuenta no se toca');
+const sello = hoyFondos.replace(/-/g, '');
+ok(props.lecturaDia === hoyFondos && hojas.Fondos.f[1][7] === '=VALUE(SUBSTITUTE(REGEXEXTRACT(INDEX(IMPORTXML("https://www.finect.com/fondos-inversion/IE00BYX5MX67-x?d=' + sello + '";"//script[@type=\'application/ld+json\'][contains(.,\'offers\')]");1);"""price"":""?([0-9.]+)");".";","))'
+  && hojas.Fondos.f[2][8] === '=TEXTJOIN(" ";TRUE;IMPORTXML("https://www.finect.com/fondos-inversion/ES0165265002-x?d=' + sello + '";"(//*[contains(.,\'Fecha de valor liquidativo\')])[last()]"))', 'fondos: cada fondo recibe las fórmulas que leen su precio y su fecha');
 const filaNasdaq = hojas.Fondos.f.findIndex(f => f[0] === 'ES0165265002');
 hojas.Fondos.f[filaNasdaq][7] = 1.83; hojas.Fondos.f[filaNasdaq][8] = 'Fecha de valor liquidativo: 7/10/2026';
 hojas.Fondos.f[1][7] = '#REF!';
+t = post({ clave: 'k', accion: 'leer' });
+ok(hojas.Fondos.f[1][7] === '#REF!', 'fondos: el mismo día no se reescriben las fórmulas que ya están');
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos[1].precio === 1.83 && t.fondos[1].fechaPrecio === '2026-10-07' && t.fondos[0].precio === 17.13 && ct('mi').saldo === Math.round((100 * 17.13 + 500.82 * 1.83) * 100) / 100 && ct('mi').fechaSaldo === '2026-10-10T16:05:00', 'fondos: lo que lee la fórmula pasa a ser el precio; un error de la fórmula deja el precio anterior (' + ct('mi').saldo + ')');
 hojas.Fondos.f[1][7] = 17.5; hojas.Fondos.f[1][8] = new Date(2026, 9, 9);
@@ -231,6 +238,11 @@ ok(t.fondos[0].precio === 17.5 && t.fondos[0].fechaPrecio === '2026-10-09' && t.
 post({ clave: 'k', accion: 'fondo.borrar', id: 'ES0165265002' });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 1 && ct('mi').saldo === 1925, 'fondos: al quitar un fondo la cuenta se recalcula con los que quedan');
+hojas.Fondos.f[1][7] = 171335; t = post({ clave: 'k', accion: 'leer' });
+ok(t.fondos[0].precio === 17.5 && ct('mi').saldo === 1925, 'fondos: una lectura disparatada (171335 en vez de 17,1335) no se toma como precio');
+hojas.Fondos.f[1][7] = 17.5; props.lecturaDia = '2000-01-01'; t = post({ clave: 'k', accion: 'leer' });
+ok(props.lecturaDia === hoyFondos && /^=VALUE\(SUBSTITUTE\(REGEXEXTRACT/.test(hojas.Fondos.f[1][7]) && t.fondos[0].precio === 17.5, 'fondos: al cambiar de día las fórmulas se reescriben para volver a pedir la página');
+hojas.Fondos.f[1][7] = 17.5;
 
 // ---------------------------------------------------------------- compras confirmadas por correo
 const MI = 'notificaciones@myinvestor.es';
