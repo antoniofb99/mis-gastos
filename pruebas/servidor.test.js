@@ -29,7 +29,7 @@ global.Utilities = {
   base64DecodeWebSafe: t => { if (typeof t !== 'string') throw new Error('Could not decode string.'); return Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64'); },
   newBlob: b => ({ getDataAsString: () => Buffer.from(b).toString('utf8') }),
   getUuid: () => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16)),
-  formatDate: (d, z, f) => d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + (f === 'yyyy-MM-dd' ? '' : 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds())),
+  formatDate: (d, z, f) => f === 'HH' ? p2(d.getHours()) : d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + (f === 'yyyy-MM-dd' ? '' : 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds())),
   parseDate: s => { const m = s.match(/(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)/).map(Number); return new Date(m[1], m[2]-1, m[3], m[4], m[5], m[6]); },
 };
 const correos = []; const props = {}; const disparadores = []; let gmailRoto = false;
@@ -221,13 +221,21 @@ post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'ES0165265002', nombre:
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 2 && t.fondos[1].precio === null && ct('mi').saldo === 1713, 'fondos: si a un fondo le falta el precio, el valor de la cuenta no se toca');
 const sello = hoyFondos.replace(/-/g, '');
-ok(props.lecturaDia === hoyFondos && hojas.Fondos.f[1][7] === '=VALUE(SUBSTITUTE(REGEXEXTRACT(INDEX(IMPORTXML("https://www.finect.com/fondos-inversion/IE00BYX5MX67-x?d=' + sello + '";"//script[@type=\'application/ld+json\'][contains(.,\'offers\')]");1);"""price"":""?([0-9.]+)");".";","))'
-  && hojas.Fondos.f[2][8] === '=TEXTJOIN(" ";TRUE;IMPORTXML("https://www.finect.com/fondos-inversion/ES0165265002-x?d=' + sello + '";"(//*[contains(.,\'Fecha de valor liquidativo\')])[last()]"))', 'fondos: cada fondo recibe las fórmulas que leen su precio y su fecha');
+ok(props.lecturaDia === hoyFondos && hojas.Fondos.f[0][9] === 'Lectura'
+  && hojas.Fondos.f[1][9] === '=TEXTJOIN(" ";TRUE;IMPORTXML("https://www.finect.com/fondos-inversion/IE00BYX5MX67-x?d=' + sello + '";"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | (//*[contains(.,\'Fecha de valor liquidativo\')])[last()]"))'
+  && hojas.Fondos.f[1][7] === '=VALUE(SUBSTITUTE(REGEXEXTRACT(J2;"""price"":""?([0-9.]+)");".";","))'
+  && hojas.Fondos.f[2][8] === '=REGEXEXTRACT(J3;"liquidativo:\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")' && /ES0165265002-x\?d=/.test(hojas.Fondos.f[2][9]), 'fondos: cada fondo recibe las fórmulas que leen su precio y su fecha');
 const filaNasdaq = hojas.Fondos.f.findIndex(f => f[0] === 'ES0165265002');
-hojas.Fondos.f[filaNasdaq][7] = 1.83; hojas.Fondos.f[filaNasdaq][8] = 'Fecha de valor liquidativo: 7/10/2026';
+hojas.Fondos.f[filaNasdaq][7] = 1.83; hojas.Fondos.f[filaNasdaq][8] = '7/10/2026';
 hojas.Fondos.f[1][7] = '#REF!';
 t = post({ clave: 'k', accion: 'leer' });
 ok(hojas.Fondos.f[1][7] === '#REF!', 'fondos: el mismo día no se reescriben las fórmulas que ya están');
+hojas.Fondos.f[1][9] = '#N/A'; t = post({ clave: 'k', accion: 'leer' });
+const reint = hojas.Fondos.f[1][9];
+ok(/IE00BYX5MX67-x\?d=\d{10}"/.test(reint) && props.lecturaHora && !/d=\d{10}"/.test(hojas.Fondos.f[2][9]), 'fondos: si la página no respondió, se vuelve a pedir (solo ese fondo)');
+hojas.Fondos.f[1][9] = '#N/A'; t = post({ clave: 'k', accion: 'leer' });
+ok(hojas.Fondos.f[1][9] === '#N/A', 'fondos: el reintento es como mucho uno por hora');
+hojas.Fondos.f[1][9] = reint; hojas.Fondos.f[1][7] = '#REF!';
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos[1].precio === 1.83 && t.fondos[1].fechaPrecio === '2026-10-07' && t.fondos[0].precio === 17.13 && ct('mi').saldo === Math.round((100 * 17.13 + 500.82 * 1.83) * 100) / 100 && ct('mi').fechaSaldo === '2026-10-10T16:05:00', 'fondos: lo que lee la fórmula pasa a ser el precio; un error de la fórmula deja el precio anterior (' + ct('mi').saldo + ')');
 hojas.Fondos.f[1][7] = 17.5; hojas.Fondos.f[1][8] = new Date(2026, 9, 9);
@@ -260,7 +268,7 @@ ok(t.operaciones.ok && t.operaciones.inicio === true && t.fondos.length === 1 &&
 operacion('o1', new Date(2026, 9, 12, 4, 19).getTime(), { fo: '09/10/2026', fv: '12/10/2026', tipo: 'SUSCRIPCION', nombre: 'S&P 500 INDEX P ACC EUR', isin: 'IE00BYX5MX67', tit: '13.473', pre: '17.0712', imp: '230.00' });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.operaciones.nuevas === 1 && t.operaciones.aplicadas === 1 && t.fondos[0].participaciones === 110 && t.fondos[0].precio === 17.5 && ct('mi').aportado === 5230, 'operaciones: una compra anterior al día en que se anotaron las participaciones no las cambia, pero sí suma lo aportado');
-hojas.Fondos.f[1][7] = '';   // sin fórmula de precio, para ver el que trae el correo
+hojas.Fondos.f[1][7] = '';   // sin lectura de precio, para ver el que trae el correo
 operacion('o2', new Date(2026, 9, 12, 9, 30).getTime(), { fo: '12/10/2026', fv: '13/10/2026', tipo: 'SUSCRIPCION', nombre: 'S&P 500 INDEX P ACC EUR', isin: 'IE00BYX5MX67', tit: '193.027', pre: '12.9515', imp: '2,500.00' });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos[0].participaciones === 303.027 && t.fondos[0].fechaParticipaciones === '2026-10-12T09:30:00' && t.fondos[0].precio === 12.9515 && t.fondos[0].fechaPrecio === '2026-10-13' && ct('mi').aportado === 7730 && ct('mi').fechaAportado === '2026-10-12T09:30:00' && ct('mi').saldo === Math.round(303.027 * 12.9515 * 100) / 100 && ct('mi').fechaSaldo === '2026-10-12T09:30:00', 'operaciones: una compra nueva suma participaciones, precio y aportado (lee 2,500.00) y la cuenta se recalcula');

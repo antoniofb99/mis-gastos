@@ -26,9 +26,10 @@ const H_SALDOS = ['Día', 'Total', 'Cuentas'];
 const SALDOS_MAX = 800;   // días que se devuelven a la app
 // Fondos de una cuenta de inversión: su valor es participaciones x precio. Las dos últimas columnas son para
 // fórmulas de la propia hoja que lean el precio y su fecha de fuera; si dan un número, pasa a ser el precio.
-const H_FONDOS = ['ISIN', 'Nombre', 'Cuenta', 'Participaciones', 'Fecha participaciones', 'Precio', 'Fecha precio', 'Lectura precio', 'Lectura fecha'];
+const H_FONDOS = ['ISIN', 'Nombre', 'Cuenta', 'Participaciones', 'Fecha participaciones', 'Precio', 'Fecha precio', 'Lectura precio', 'Lectura fecha', 'Lectura'];
 const FONDO_DATOS = 7;    // columnas que escribe el script; las de lectura no se tocan
 // Página pública de la que la hoja lee cada día el valor liquidativo (con IMPORTXML): se le añade el ISIN.
+// La columna "Lectura" trae el trozo de página en una sola petición; "Lectura precio" y "Lectura fecha" lo trocean.
 const FUENTE_PRECIO = 'https://www.finect.com/fondos-inversion/';
 // Correos con los que el bróker confirma cada compra o venta de un fondo: de ahí salen las participaciones.
 const OPERACIONES = { remitente: 'notificaciones@myinvestor.es', asunto: 'OPERACIÓN DE VALORES' };
@@ -318,7 +319,8 @@ function valorarFondos() {
   const zona = zonaHoraria();
   const hoy = Utilities.formatDate(new Date(), zona, 'yyyy-MM-dd');
   const filas = h.getRange(2, 1, n, H_FONDOS.length).getValues().filter(function (f) { return String(f[0]) !== ''; });
-  const vacias = filas.filter(function (f) { return f[7] === '' || f[7] == null; }).map(function (f) { return String(f[0]); });
+  const vacias = filas.filter(function (f) { return f[9] === '' || f[9] == null; }).map(function (f) { return String(f[0]); });
+  const fallidas = filas.filter(function (f) { return typeof f[9] === 'string' && f[9].charAt(0) === '#'; }).map(function (f) { return String(f[0]); });
   filas.forEach(function (f) {
     const leido = f[7];
     if (typeof leido !== 'number' || !isFinite(leido) || !(leido > 0)) return;
@@ -343,31 +345,39 @@ function valorarFondos() {
     guardarCuenta(c);
     cambiadas++;
   });
-  ponerLecturas(h, vacias, hoy);
+  ponerLecturas(h, vacias, fallidas, hoy);
   return cambiadas;
 }
 
-// Fórmulas que leen el precio y su fecha de la página del fondo. Se reescriben una vez al día
-// (con el día en la dirección, para que la hoja vuelva a pedir la página) y en los fondos que aún no las tienen.
-function ponerLecturas(h, vacias, hoy) {
+// Fórmulas que leen el precio y su fecha de la página del fondo. Se reescriben una vez al día (con el día en la
+// dirección, para que la hoja vuelva a pedir la página), en los fondos que aún no las tienen y, como mucho una vez
+// por hora, en los que la petición haya fallado.
+function ponerLecturas(h, vacias, fallidas, hoy) {
   const props = PropertiesService.getScriptProperties();
   const todas = props.getProperty('lecturaDia') !== hoy;
+  const hora = hoy + 'T' + Utilities.formatDate(new Date(), zonaHoraria(), 'HH');
+  const reintento = !todas && fallidas.length > 0 && props.getProperty('lecturaHora') !== hora;
   const n = h.getLastRow() - 1;
-  if (n < 1 || (!todas && !vacias.length)) return;
+  if (n < 1 || (!todas && !vacias.length && !reintento)) return;
   const ingles = /^(en|ja|zh|ko|th|he|hi)/i.test(String(SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale() || ''));
   const sep = ingles ? ',' : ';';
   const isines = h.getRange(2, 1, n, 1).getValues();
   for (let i = 0; i < isines.length; i++) {
     const isin = isinValido(isines[i][0]);
-    if (!isin || (!todas && vacias.indexOf(isin) < 0)) continue;
-    const url = FUENTE_PRECIO + isin + '-x?d=' + hoy.replace(/-/g, '');
-    const crudo = 'REGEXEXTRACT(INDEX(IMPORTXML("' + url + '"' + sep + '"//script[@type=\'application/ld+json\'][contains(.,\'offers\')]")' + sep + '1)' + sep + '"""price"":""?([0-9.]+)")';
-    const precio = ingles ? '=VALUE(' + crudo + ')' : '=VALUE(SUBSTITUTE(' + crudo + sep + '"."' + sep + '","))';
-    const fecha = '=TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTXML("' + url + '"' + sep + '"(//*[contains(.,\'Fecha de valor liquidativo\')])[last()]"))';
-    h.getRange(i + 2, 8).setFormula(precio);
-    h.getRange(i + 2, 9).setFormula(fecha);
+    if (!isin) continue;
+    const toca = todas || vacias.indexOf(isin) > -1 || (reintento && fallidas.indexOf(isin) > -1);
+    if (!toca) continue;
+    const sello = (reintento && fallidas.indexOf(isin) > -1 ? hora : hoy).replace(/[-T]/g, '');
+    const url = FUENTE_PRECIO + isin + '-x?d=' + sello;
+    const fila = i + 2, celda = 'J' + fila;
+    const crudo = 'REGEXEXTRACT(' + celda + sep + '"""price"":""?([0-9.]+)")';
+    h.getRange(fila, 10).setFormula('=TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTXML("' + url + '"' + sep +
+      '"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | (//*[contains(.,\'Fecha de valor liquidativo\')])[last()]"))');
+    h.getRange(fila, 8).setFormula(ingles ? '=VALUE(' + crudo + ')' : '=VALUE(SUBSTITUTE(' + crudo + sep + '"."' + sep + '","))');
+    h.getRange(fila, 9).setFormula('=REGEXEXTRACT(' + celda + sep + '"liquidativo:\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")');
   }
   if (todas) props.setProperty('lecturaDia', hoy);
+  if (reintento) props.setProperty('lecturaHora', hora);
 }
 
 /* ------------------------------------------- compras y ventas confirmadas por correo */
