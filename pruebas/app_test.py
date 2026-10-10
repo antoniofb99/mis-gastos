@@ -133,6 +133,13 @@ async def main():
             await pg.evaluate("document.querySelector('.app').style.minHeight = '3000px'; scrollTo(0, 400)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(300); n2 = llamadas.count("leer")
             await pg.evaluate("document.querySelector('.app').style.minHeight = ''; scrollTo(0, 0)")
             ok(await pg.locator("#sync").count() == 0 and gira and not para and n1 == n0 + 1 and "Datos al día" in aviso_t and n2 == n1, "actualizar: tirar hacia abajo desde arriba recarga; a mitad de página no (%s, %s, %s)" % (n0, n1, n2))
+            # --- hueco de iOS bajo el menú: se detecta y se pinta como el menú
+            col = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).backgroundColor")
+            normal = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await col("html") == await col("body"), await pg.evaluate("document.body.getBoundingClientRect().bottom >= innerHeight - 1")]
+            await pg.evaluate("Object.defineProperty(navigator, 'standalone', { configurable: true, get: () => true }); Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight + 59 }); dispatchEvent(new Event('resize'))")
+            roto = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await pg.evaluate("document.documentElement.style.getPropertyValue('--hueco')"), await col("html") == await col(".tabs"), await col("body") != await col(".tabs")]
+            await pg.evaluate("Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight }); dispatchEvent(new Event('resize'))")
+            ok(normal == [False, True, True] and roto == [True, "59px", True, True] and not await pg.evaluate("document.documentElement.classList.contains('hueco')"), "hueco de iOS: sin él todo igual; con él, el fondo de fuera toma el color del menú (%s | %s)" % (normal, roto))
             # --- el ojo: difumina los importes y se recuerda
             filtro = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).filter")
             logos = await pg.eval_on_selector_all(".cuenta", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : 'letras'))")

@@ -21,6 +21,14 @@
 /* Base: lo que antes ponía el visor de Claude */
 html{padding-top:env(safe-area-inset-top,0px);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
 body{margin:0}
+/* El fondo de la página es el del cuerpo, que llena siempre la pantalla. El del lienzo (html) solo se ve
+   fuera de la página: al rebotar el scroll y, con el fallo de iOS de abajo, en el hueco bajo el menú. */
+html{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;background:var(--bg);
+  --sab:max(0px,calc(env(safe-area-inset-bottom,0px) - var(--hueco,0px)))}
+body{flex:1 0 auto;min-width:0}
+/* Fallo de iOS (WebKit 301994): a veces la app instalada recibe menos alto que la pantalla y queda un hueco
+   bajo el menú. No se puede ocupar; se pinta como el menú y el menú baja lo que iOS deja (--sab). */
+html.hueco{background:var(--paper)}
 img{max-width:100%}
 [hidden]{display:none!important}
 button{touch-action:manipulation}
@@ -222,8 +230,8 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .btn[disabled]{opacity:.5;cursor:default}
 
 /* Navegación inferior */
-.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(72px + env(safe-area-inset-bottom,0px));background:var(--accent-f);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
-.tabs{position:fixed;z-index:6;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:env(safe-area-inset-bottom,0px)}
+.fab{position:fixed;z-index:6;right:max(16px,calc(50% - 254px));bottom:calc(72px + var(--sab));background:var(--accent-f);color:var(--on-accent);border-radius:99px;padding:13px 18px;font-weight:700;font-size:15px;box-shadow:0 6px 18px var(--shade)}
+.tabs{position:fixed;z-index:6;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding-bottom:var(--sab)}
 .tabs div{max-width:540px;margin-inline:auto;display:flex;justify-content:space-between;padding:6px 4px 4px}
 .tabs button{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 1px 3px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;color:var(--muted)}
 .tabs svg{display:block;width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
@@ -258,7 +266,7 @@ dialog.hoja::backdrop{background:var(--shade)}
 .tirar.girando{opacity:1;transform:translateY(0)}
 .tirar.girando svg{animation:gira-t .8s linear infinite}
 @keyframes gira-t{to{transform:rotate(360deg)}}
-.toast{position:fixed;z-index:20;left:50%;bottom:calc(128px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:99px;padding:9px 16px;font-size:13.5px;font-weight:600;max-width:calc(100% - 32px);text-align:center}
+.toast{position:fixed;z-index:20;left:50%;bottom:calc(128px + var(--sab));transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:99px;padding:9px 16px;font-size:13.5px;font-weight:600;max-width:calc(100% - 32px);text-align:center}
 /* Pantalla para conectar el dispositivo */
 .entrada{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 20px;overflow:auto}
 .entrada form{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
@@ -1606,6 +1614,21 @@ dialog.candado::backdrop{background:var(--bg)}
   $('#mes-sig').addEventListener('click', function () { cambiarMes(moverMes(S.mes, 1)); });
   $('#mes-hoy').addEventListener('click', function () { cambiarMes(claveMes(new Date())); });
   $('#nuevo').addEventListener('click', function () { abrirHoja(null); });
+  /* Mide el hueco que iOS deja a veces bajo la app instalada (alto de pantalla menos alto que nos da). */
+  function medirHueco() {
+    var h = 0;
+    try {
+      if (navigator.standalone && window.innerHeight > window.innerWidth) {
+        h = Math.round(screen.height - window.innerHeight);
+        if (h < 16 || h > 90) h = 0;
+      }
+    } catch (e) {}
+    document.documentElement.classList.toggle('hueco', h > 0);
+    document.documentElement.style.setProperty('--hueco', h + 'px');
+  }
+  medirHueco();
+  ['resize', 'orientationchange', 'pageshow'].forEach(function (ev) { window.addEventListener(ev, medirHueco); });
+  document.addEventListener('visibilitychange', medirHueco);
   /* El ojo: oculta o enseña los importes, y lo recuerda en este dispositivo. */
   function ponerOjo(oculto) {
     document.documentElement.classList.toggle('oculto', oculto);
@@ -1780,7 +1803,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.2229';
+  var VERSION = '2026-10-10.2238';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
