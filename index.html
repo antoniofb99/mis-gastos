@@ -27,8 +27,12 @@ html{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;ba
   --sab:max(0px,calc(env(safe-area-inset-bottom,0px) - var(--hueco,0px)))}
 body{flex:1 0 auto;min-width:0}
 /* Fallo de iOS (WebKit 301994): a veces la app instalada recibe menos alto que la pantalla y queda un hueco
-   bajo el menú. No se puede ocupar; se pinta como el menú y el menú baja lo que iOS deja (--sab). */
-html.hueco{background:var(--paper)}
+   bajo el menú. No se puede ocupar, y iOS lo pinta con el color de fondo del cuerpo. Por eso, cuando ocurre,
+   el cuerpo toma el color del menú (el hueco parece parte de él), el fondo de la página pasa a una capa fija
+   por detrás del contenido y el menú baja lo que iOS deja (--sab). */
+html.hueco{background:none}
+html.hueco body{background:var(--paper)}
+html.hueco body::after{content:"";position:fixed;z-index:-1;top:0;left:0;right:0;bottom:0;background:var(--bg)}
 img{max-width:100%}
 [hidden]{display:none!important}
 button{touch-action:manipulation}
@@ -1803,7 +1807,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Versión de la app. Si en el servidor hay una más nueva, la página se recarga sola
      (el iPhone tiende a quedarse con la copia antigua cuando está instalada en la pantalla de inicio). */
-  var VERSION = '2026-10-10.2238';
+  var VERSION = '2026-10-10.2242';
   async function comprobarVersion() {
     try {
       var r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });

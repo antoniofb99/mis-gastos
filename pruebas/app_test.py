@@ -135,9 +135,11 @@ async def main():
             ok(await pg.locator("#sync").count() == 0 and gira and not para and n1 == n0 + 1 and "Datos al día" in aviso_t and n2 == n1, "actualizar: tirar hacia abajo desde arriba recarga; a mitad de página no (%s, %s, %s)" % (n0, n1, n2))
             # --- hueco de iOS bajo el menú: se detecta y se pinta como el menú
             col = lambda sel: pg.eval_on_selector(sel, "e => getComputedStyle(e).backgroundColor")
+            fondo = await col("body")
             normal = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await col("html") == await col("body"), await pg.evaluate("document.body.getBoundingClientRect().bottom >= innerHeight - 1")]
             await pg.evaluate("Object.defineProperty(navigator, 'standalone', { configurable: true, get: () => true }); Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight + 59 }); dispatchEvent(new Event('resize'))")
-            roto = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await pg.evaluate("document.documentElement.style.getPropertyValue('--hueco')"), await col("html") == await col(".tabs"), await col("body") != await col(".tabs")]
+            roto = [await pg.evaluate("document.documentElement.classList.contains('hueco')"), await pg.evaluate("document.documentElement.style.getPropertyValue('--hueco')"), await col("body") == await col(".tabs"), await pg.evaluate("getComputedStyle(document.body, '::after').backgroundColor") == fondo and fondo != await col(".tabs")]
+            await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-hueco.png")
             await pg.evaluate("Object.defineProperty(screen, 'height', { configurable: true, get: () => innerHeight }); dispatchEvent(new Event('resize'))")
             ok(normal == [False, True, True] and roto == [True, "59px", True, True] and not await pg.evaluate("document.documentElement.classList.contains('hueco')"), "hueco de iOS: sin él todo igual; con él, el fondo de fuera toma el color del menú (%s | %s)" % (normal, roto))
             # --- el ojo: difumina los importes y se recuerda
