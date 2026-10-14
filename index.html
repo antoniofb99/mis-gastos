@@ -9,8 +9,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Mis Gastos">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#262538" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#151422" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#111113" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -40,37 +40,37 @@ body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env
    los rellenos, los pastel (--accent-f, --bar, --ok-f…). Los seis colores de serie están comprobados
    con el validador de paletas (separación entre vecinos, también para daltonismo) en claro y en oscuro. */
 :root{
-  --bg:#F3F1F9; --paper:#FFFFFF; --ink:#262538; --muted:#6B6982; --rule:#DCD8E8; --track:#EBE8F3;
-  --accent:#5059C4; --accent-f:#B9C0F6; --on-accent:#262538; --bar:#9AA5EE;
+  --bg:#F2F2F4; --paper:#FFFFFF; --ink:#111113; --muted:#6C6C72; --rule:#DEDEE2; --track:#ECECEF;
+  --accent:#111113; --accent-f:#1C1C1E; --on-accent:#FFFFFF; --bar:#3A3A3C;
   --ok:#1F7A55; --warn:#8F5A00; --over:#B83A32;
   --ok-f:#8FD3B4; --warn-f:#F0C777; --over-f:#F0A099;
   --ok-bg:#DFF3E8; --warn-bg:#FBEED3; --over-bg:#FBE3E0;
-  --shade:rgba(38,37,56,.45);
-  --s1:#64a3e3; --s2:#d8875d; --s3:#62caa0; --s4:#a98ddb; --s5:#cdb056; --s6:#d67fa2; --s-otras:#b5b3c4;
-  --barra:#262538;
+  --shade:rgba(0,0,0,.45);
+  --s1:#1c1c1e; --s2:#3e3e42; --s3:#5e5e63; --s4:#7c7c82; --s5:#98989e; --s6:#b0b0b6; --s-otras:#d4d4d8;
+  --barra:#111113;
   --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,"Segoe UI",Roboto,sans-serif;
   --font-num:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",system-ui,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-  --bg:#151422; --paper:#211F30; --ink:#ECEBF5; --muted:#9F9CB8; --rule:#37344B; --track:#2C2A3E;
-  --accent:#B9C0F6; --accent-f:#B9C0F6; --on-accent:#151422; --bar:#9AA5EE;
+  --bg:#000000; --paper:#1C1C1E; --ink:#F2F2F4; --muted:#9A9AA0; --rule:#38383C; --track:#2C2C2E;
+  --accent:#F2F2F4; --accent-f:#3A3A3C; --on-accent:#FFFFFF; --bar:#8E8E93;
   --ok:#7FD4AE; --warn:#F0C777; --over:#F5A49D;
   --ok-f:#7FD4AE; --warn-f:#F0C777; --over-f:#F5A49D;
   --ok-bg:#1B3A2E; --warn-bg:#40321A; --over-bg:#472624;
-  --shade:rgba(0,0,0,.62); --barra:#151422;
-  --s1:#538fcb; --s2:#b56a42; --s3:#45a983; --s4:#8a70b8; --s5:#ac913a; --s6:#b36383; --s-otras:#77748c;
+  --shade:rgba(0,0,0,.62); --barra:#000000;
+  --s1:#f2f2f7; --s2:#d1d1d6; --s3:#b0b0b6; --s4:#909096; --s5:#737379; --s6:#5c5c62; --s-otras:#3e3e42;
   color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#151422; --paper:#211F30; --ink:#ECEBF5; --muted:#9F9CB8; --rule:#37344B; --track:#2C2A3E;
-  --accent:#B9C0F6; --accent-f:#B9C0F6; --on-accent:#151422; --bar:#9AA5EE;
+  --bg:#000000; --paper:#1C1C1E; --ink:#F2F2F4; --muted:#9A9AA0; --rule:#38383C; --track:#2C2C2E;
+  --accent:#F2F2F4; --accent-f:#3A3A3C; --on-accent:#FFFFFF; --bar:#8E8E93;
   --ok:#7FD4AE; --warn:#F0C777; --over:#F5A49D;
   --ok-f:#7FD4AE; --warn-f:#F0C777; --over-f:#F5A49D;
   --ok-bg:#1B3A2E; --warn-bg:#40321A; --over-bg:#472624;
-  --shade:rgba(0,0,0,.62); --barra:#151422;
-  --s1:#538fcb; --s2:#b56a42; --s3:#45a983; --s4:#8a70b8; --s5:#ac913a; --s6:#b36383; --s-otras:#77748c;
+  --shade:rgba(0,0,0,.62); --barra:#000000;
+  --s1:#f2f2f7; --s2:#d1d1d6; --s3:#b0b0b6; --s4:#909096; --s5:#737379; --s6:#5c5c62; --s-otras:#3e3e42;
   color-scheme:dark;
 }
 
@@ -135,7 +135,8 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .cat{display:flex;flex-direction:column;gap:10px;width:100%;text-align:left;background:var(--paper);border-radius:16px;padding:12px 16px 14px 12px}
 .cat .fila{display:flex;align-items:center;gap:12px}
 .cat .ico{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--track);color:var(--ink)}
-.cat .ico.color{color:#1F1E2E}
+.cat .ico{position:relative}
+.cat .ico .punto{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;border-radius:50%;border:2.5px solid var(--paper)}
 .cat .ico svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .cat .nombre{flex:1;min-width:0;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat .cifras{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--muted);white-space:nowrap}
@@ -201,7 +202,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .reparto>.nota{text-align:center}
 .ctas{display:flex;flex-direction:column;gap:10px}
 .cuenta{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px 12px 12px;text-align:left;background:var(--paper);border-radius:16px}
-.logo{flex:none;position:relative;width:36px;height:36px;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px rgba(38,37,56,.10);display:grid;place-items:center;font-size:12.5px;font-weight:800;letter-spacing:-.02em;color:#262538}
+.logo{flex:none;position:relative;width:36px;height:36px;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);display:grid;place-items:center;font-size:12.5px;font-weight:800;letter-spacing:-.02em;color:#262538}
 .logo img{display:block;width:100%;height:100%;border-radius:10px}
 .logo.letras{background:var(--track);box-shadow:none;color:var(--ink)}
 .logo .punto{position:absolute;right:-4px;bottom:-4px;width:12px;height:12px;border-radius:50%;border:2px solid var(--paper)}
@@ -281,7 +282,7 @@ dialog.hoja::backdrop{background:var(--shade)}
 .error{color:var(--over);font-size:13.5px;margin:0;min-height:1.2em}
 
 /* Tirar hacia abajo para actualizar: el círculo baja con el dedo y gira mientras se actualiza */
-.tirar{position:fixed;z-index:8;top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;width:38px;height:38px;margin-left:-19px;border-radius:50%;background:var(--paper);color:var(--accent);box-shadow:0 3px 14px rgba(38,37,56,.22);display:grid;place-items:center;opacity:0;transform:translateY(-64px);pointer-events:none}
+.tirar{position:fixed;z-index:8;top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;width:38px;height:38px;margin-left:-19px;border-radius:50%;background:var(--paper);color:var(--accent);box-shadow:0 3px 14px rgba(0,0,0,.2);display:grid;place-items:center;opacity:0;transform:translateY(-64px);pointer-events:none}
 .tirar.suelta{transition:transform .2s ease,opacity .2s ease}
 .tirar.girando{opacity:1;transform:translateY(0)}
 .tirar.girando svg{animation:gira-t .8s linear infinite}
@@ -916,7 +917,7 @@ dialog.candado::backdrop{background:var(--bg)}
   var ICONO_ETIQUETA = '<path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><path d="M7.5 7.5h.01"/>';
   function iconoCat(nombre, color) {
     var n = norm(nombre), i = ICONOS.find(function (x) { return x[0].split('|').some(function (k) { return n.indexOf(k) > -1; }); });
-    return '<span class="ico' + (color ? ' color' : '') + '" aria-hidden="true"' + (color ? ' style="background:' + color + '"' : '') + '><svg viewBox="0 0 24 24">' + (i ? i[1] : ICONO_ETIQUETA) + '</svg></span>';
+    return '<span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24">' + (i ? i[1] : ICONO_ETIQUETA) + '</svg>' + (color ? '<i class="punto" style="background:' + color + '"></i>' : '') + '</span>';
   }
 
   /* ---------- vistas ---------- */
@@ -1293,7 +1294,7 @@ dialog.candado::backdrop{background:var(--bg)}
   }
 
   /* ---------- pestaña Patrimonio: todo lo que tienes, hoy ---------- */
-  var GRUPOS = [['gasto', 'Día a día', 'var(--s5)'], ['conjunta', 'Cuenta conjunta', 'var(--s6)'], ['ahorro', 'Ahorro', 'var(--s1)'], ['inversion', 'Inversión', 'var(--s2)']];
+  var GRUPOS = [['gasto', 'Día a día', 'var(--s1)'], ['conjunta', 'Cuenta conjunta', 'var(--s2)'], ['ahorro', 'Ahorro', 'var(--s3)'], ['inversion', 'Inversión', 'var(--s4)']];
   function pintarPatrimonio() {
     var el = $('#v-patrimonio');
     if (S.sinDatos) { el.innerHTML = ''; return; }
@@ -1890,7 +1891,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-14.2008';
+  var VERSION = '2026-10-14.2139';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
