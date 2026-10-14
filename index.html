@@ -46,7 +46,7 @@ body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env
   --ok-f:#8FD3B4; --warn-f:#F0C777; --over-f:#F0A099;
   --ok-bg:#DFF3E8; --warn-bg:#FBEED3; --over-bg:#FBE3E0;
   --shade:rgba(0,0,0,.45);
-  --s1:#1c1c1e; --s2:#3e3e42; --s3:#5e5e63; --s4:#7c7c82; --s5:#98989e; --s6:#b0b0b6; --s-otras:#d4d4d8;
+  --s1:#64a3e3; --s2:#d8875d; --s3:#62caa0; --s4:#a98ddb; --s5:#cdb056; --s6:#d67fa2; --s-otras:#b4b4ba;
   --barra:#111113;
   --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,"Segoe UI",Roboto,sans-serif;
   --font-num:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",system-ui,"Segoe UI",Roboto,sans-serif;
@@ -59,7 +59,7 @@ body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env
   --ok-f:#7FD4AE; --warn-f:#F0C777; --over-f:#F5A49D;
   --ok-bg:#1B3A2E; --warn-bg:#40321A; --over-bg:#472624;
   --shade:rgba(0,0,0,.62); --barra:#000000;
-  --s1:#f2f2f7; --s2:#d1d1d6; --s3:#b0b0b6; --s4:#909096; --s5:#737379; --s6:#5c5c62; --s-otras:#3e3e42;
+  --s1:#538fcb; --s2:#b56a42; --s3:#45a983; --s4:#8a70b8; --s5:#ac913a; --s6:#b36383; --s-otras:#76767c;
   color-scheme:dark;
   }
 }
@@ -70,7 +70,7 @@ body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env
   --ok-f:#7FD4AE; --warn-f:#F0C777; --over-f:#F5A49D;
   --ok-bg:#1B3A2E; --warn-bg:#40321A; --over-bg:#472624;
   --shade:rgba(0,0,0,.62); --barra:#000000;
-  --s1:#f2f2f7; --s2:#d1d1d6; --s3:#b0b0b6; --s4:#909096; --s5:#737379; --s6:#5c5c62; --s-otras:#3e3e42;
+  --s1:#538fcb; --s2:#b56a42; --s3:#45a983; --s4:#8a70b8; --s5:#ac913a; --s6:#b36383; --s-otras:#76767c;
   color-scheme:dark;
 }
 
@@ -135,8 +135,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .cat{display:flex;flex-direction:column;gap:10px;width:100%;text-align:left;background:var(--paper);border-radius:16px;padding:12px 16px 14px 12px}
 .cat .fila{display:flex;align-items:center;gap:12px}
 .cat .ico{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--track);color:var(--ink)}
-.cat .ico{position:relative}
-.cat .ico .punto{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;border-radius:50%;border:2.5px solid var(--paper)}
+.cat .ico.color{color:#1F1E2E}
 .cat .ico svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .cat .nombre{flex:1;min-width:0;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cat .cifras{flex:none;display:flex;flex-direction:column;align-items:flex-end;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--muted);white-space:nowrap}
@@ -291,6 +290,15 @@ dialog.hoja::backdrop{background:var(--shade)}
 /* Pantalla para conectar el dispositivo */
 .entrada{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 20px;overflow:auto}
 .entrada form{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
+/* Pantalla de acceso: logo, saludo y el botón abajo, como la de un banco */
+.acceso{min-height:min(100%,640px);justify-content:center}
+.acceso .marca{align-self:center;width:88px;height:88px;color:var(--ink);margin-bottom:6px}
+.acceso .marca svg{display:block;width:100%;height:100%;filter:drop-shadow(0 8px 20px rgba(0,0,0,.18))}
+.acceso .acc-txt{text-align:center;display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.acceso h1{font-size:30px!important}
+.acceso .btn.primario{display:flex;align-items:center;justify-content:center;gap:10px;padding:15px 16px;border-radius:14px;font-size:16px}
+.acceso .grupo{text-align:left}
+.candado .btn.primario:focus{outline:none}
 .entrada h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
 /* Bloqueo con Face ID: tapa toda la app, también las hojas abiertas */
 dialog.candado{position:fixed;inset:0;z-index:40;box-sizing:border-box;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;padding:24px 20px;background:var(--bg);color:var(--ink);overflow:auto}
@@ -299,8 +307,8 @@ dialog.candado::backdrop{background:var(--bg)}
 .candado .cd-caja{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px}
 .candado h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
 .candado form{display:flex;flex-direction:column;gap:10px}
-.candado .enlace{align-self:flex-start;padding:6px 0}
-.candado.cortina .cd-caja>:not(h1){visibility:hidden}
+.candado .enlace{align-self:center;padding:6px 0}
+.candado.cortina .cd-caja>:not(.marca){visibility:hidden}
 .flecha.girando{opacity:.55}
 /* Ahorro */
 .total.pos{color:var(--ok)}
@@ -545,9 +553,9 @@ dialog.candado::backdrop{background:var(--bg)}
 </dialog>
 
 <div class="entrada" id="entrada" hidden>
-  <form id="form-clave" novalidate>
-    <h1>Mis Gastos</h1>
-    <p class="nota">Pega la clave de tu hoja para conectar este dispositivo. Solo hay que hacerlo una vez.</p>
+  <form id="form-clave" class="acceso" novalidate>
+    <div class="marca" aria-hidden="true"><svg viewBox="0 0 96 96"><rect width="96" height="96" rx="26" fill="currentColor"/><text x="48" y="58" text-anchor="middle" font-size="36" font-weight="800" letter-spacing="-1.5" fill="var(--paper)" font-family="-apple-system,BlinkMacSystemFont,Inter,system-ui,sans-serif">MG</text><circle cx="36" cy="72" r="3.2" fill="var(--s1)"/><circle cx="48" cy="72" r="3.2" fill="var(--s3)"/><circle cx="60" cy="72" r="3.2" fill="var(--s2)"/></svg></div>
+    <div class="acc-txt"><h1>Mis Gastos</h1><p class="nota">Pega la clave de tu hoja para conectar este dispositivo. Solo hay que hacerlo una vez.</p></div>
     <div class="grupo">
       <label for="k-clave">Clave</label>
       <input class="texto" id="k-clave" name="clave" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="gastos-…">
@@ -558,10 +566,10 @@ dialog.candado::backdrop{background:var(--bg)}
 </div>
 
 <dialog class="candado" id="candado" aria-labelledby="cd-titulo">
-  <div class="cd-caja">
-    <h1 id="cd-titulo">Mis Gastos</h1>
-    <p class="nota">La app está bloqueada.</p>
-    <button class="btn primario" type="button" id="cd-abrir">Desbloquear con Face ID</button>
+  <div class="cd-caja acceso">
+    <div class="marca" aria-hidden="true"><svg viewBox="0 0 96 96"><rect width="96" height="96" rx="26" fill="currentColor"/><text x="48" y="58" text-anchor="middle" font-size="36" font-weight="800" letter-spacing="-1.5" fill="var(--paper)" font-family="-apple-system,BlinkMacSystemFont,Inter,system-ui,sans-serif">MG</text><circle cx="36" cy="72" r="3.2" fill="var(--s1)"/><circle cx="48" cy="72" r="3.2" fill="var(--s3)"/><circle cx="60" cy="72" r="3.2" fill="var(--s2)"/></svg></div>
+    <div class="acc-txt"><h1 id="cd-titulo">Hola, Antonio</h1><p class="nota">Desbloquea para ver tus cuentas.</p></div>
+    <button class="btn primario" type="button" id="cd-abrir"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3H5a2 2 0 0 0-2 2v2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M17 21h2a2 2 0 0 0 2-2v-2"/><path d="M9 9v1"/><path d="M15 9v1"/><path d="M12 9v4h-1"/><path d="M9 16c1.6 1.3 4.4 1.3 6 0"/></svg>Desbloquear con Face ID</button>
     <p class="error" id="cd-error" role="alert"></p>
     <button class="enlace" type="button" id="cd-otra">Entrar con la clave</button>
     <form id="cd-form" hidden novalidate>
@@ -917,7 +925,7 @@ dialog.candado::backdrop{background:var(--bg)}
   var ICONO_ETIQUETA = '<path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><path d="M7.5 7.5h.01"/>';
   function iconoCat(nombre, color) {
     var n = norm(nombre), i = ICONOS.find(function (x) { return x[0].split('|').some(function (k) { return n.indexOf(k) > -1; }); });
-    return '<span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24">' + (i ? i[1] : ICONO_ETIQUETA) + '</svg>' + (color ? '<i class="punto" style="background:' + color + '"></i>' : '') + '</span>';
+    return '<span class="ico' + (color ? ' color' : '') + '" aria-hidden="true"' + (color ? ' style="background:' + color + '"' : '') + '><svg viewBox="0 0 24 24">' + (i ? i[1] : ICONO_ETIQUETA) + '</svg></span>';
   }
 
   /* ---------- vistas ---------- */
@@ -1294,7 +1302,7 @@ dialog.candado::backdrop{background:var(--bg)}
   }
 
   /* ---------- pestaña Patrimonio: todo lo que tienes, hoy ---------- */
-  var GRUPOS = [['gasto', 'Día a día', 'var(--s1)'], ['conjunta', 'Cuenta conjunta', 'var(--s2)'], ['ahorro', 'Ahorro', 'var(--s3)'], ['inversion', 'Inversión', 'var(--s4)']];
+  var GRUPOS = [['gasto', 'Día a día', 'var(--s5)'], ['conjunta', 'Cuenta conjunta', 'var(--s6)'], ['ahorro', 'Ahorro', 'var(--s1)'], ['inversion', 'Inversión', 'var(--s2)']];
   function pintarPatrimonio() {
     var el = $('#v-patrimonio');
     if (S.sinDatos) { el.innerHTML = ''; return; }
@@ -1891,7 +1899,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-14.2139';
+  var VERSION = '2026-10-14.2144';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
