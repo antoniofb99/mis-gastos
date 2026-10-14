@@ -116,11 +116,11 @@ async def main():
             evo = await pg.locator("#v-patrimonio .evo").count(); pie = await pg.inner_text("#v-patrimonio .sec:last-of-type .pie"); sin_evo = await pg.locator("#v-ahorro .evo").count()
             ok(evo == 1 and sin_evo == 0 and ("Desde el 20 ") in pie and "+2.180,00" in pie, "evolución: en Patrimonio, línea desde la primera foto hasta hoy (%s)" % pie.replace("\n", " | "))
             num = lambda x: float(x.replace("\u00a0", "").replace("€", "").replace(".", "").replace(",", ".").replace("−", "-").strip())
-            tot = num(await pg.inner_text("#v-patrimonio .total")); pill = await pg.inner_text("#v-patrimonio .ticket .pill")
+            tot = num(await pg.inner_text("#v-patrimonio .rosco .cifra")); pill = await pg.inner_text("#v-patrimonio .reparto .pill")
             grupos = await pg.eval_on_selector_all("#v-patrimonio .linea", "e => e.map(x => x.querySelector('.l').textContent.trim() + '=' + x.querySelector('.v').textContent)")
             inv = await pg.eval_on_selector_all("#v-patrimonio .objs .obj", "e => e.map(x => x.dataset.cuenta + ':' + x.querySelector('.logo').textContent)")
             lista = await pg.eval_on_selector_all("#v-patrimonio .fila-c", "e => e.map(x => x.dataset.cuenta + ':' + x.querySelector('small').textContent)")
-            cab = await pg.inner_text("#mes-txt"); ocultos = [await pg.is_hidden("#mes-ant"), await pg.is_hidden("#mes-sig"), await pg.is_hidden("#nuevo")]; trozos = await pg.locator("#v-patrimonio .comp i").count()
+            cab = await pg.inner_text("#mes-txt"); ocultos = [await pg.is_hidden("#mes-ant"), await pg.is_hidden("#mes-sig"), await pg.is_hidden("#nuevo")]; trozos = await pg.locator("#v-patrimonio .rosco .seg").count()
             ok(len(grupos) == 4 and grupos[0].startswith("Día a día") and grupos[1].startswith("Cuenta conjunta") and grupos[2].startswith("Ahorro") and grupos[3].startswith("Inversión") and abs(sum(num(x.split("=")[1]) for x in grupos) - tot) < 0.01
                and inv == ["mi:MY"] and lista == ["san:Día a día", "rev:Cuenta conjunta", "tr:Ahorro"] and cab == "Patrimonio" and ocultos == [True, True, True] and trozos == 4 and "+2.180,00" in pill,
                "patrimonio: total con inversiones, reparto por grupos, inversiones y cuentas (%s | %s | %s)" % (grupos, inv, lista))

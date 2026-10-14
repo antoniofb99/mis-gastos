@@ -104,10 +104,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .enlace{font-size:13.5px;font-weight:600;color:var(--accent)}
 
 /* Ticket del resumen */
-.ticket{position:relative;background:var(--paper);padding:20px 18px 18px;border-radius:4px 4px 0 0;margin-bottom:10px;display:flex;flex-direction:column;gap:14px}
-.ticket::after{content:"";position:absolute;left:0;right:0;top:100%;height:9px;background:var(--paper);
-  -webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/18px 100%;
-          mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 50%/18px 100%}
+.ticket{position:relative;background:var(--paper);padding:20px 18px 18px;border-radius:16px;display:flex;flex-direction:column;gap:14px}
 .ticket .eyebrow{font-family:var(--font-num);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .total{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:clamp(38px,12vw,52px);font-weight:500;line-height:1;letter-spacing:-.04em;overflow-wrap:anywhere}
 .lineas{display:flex;flex-direction:column;gap:7px;border-top:1.5px dashed var(--rule);padding-top:14px}
@@ -151,8 +148,6 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .datos .linea{padding:11px 0}
 .datos .linea+.linea{border-top:1px solid var(--rule)}
 .datos .linea>i{border:0;transform:none}
-.movs.caja{background:var(--paper);border-radius:16px;padding:2px 16px}
-.movs.caja .mov:last-child{border-bottom:0}
 .reparto .pie{align-items:center}
 
 /* Gráfico */
@@ -176,16 +171,21 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .filtros::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1.5px solid var(--rule);border-radius:99px;padding:6px 13px;font-size:13.5px;font-weight:600;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
-.dia{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:14px;padding-bottom:4px;border-bottom:1.5px solid var(--ink)}
+.dia{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:14px 4px 8px}
 .dia .num{letter-spacing:0}
 .movs{display:flex;flex-direction:column}
-.mov{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:1px;align-items:baseline;width:100%;text-align:left;padding:11px 0;border-bottom:1px solid var(--rule)}
-.mov:hover .m-n{color:var(--accent)}
-.mov .m-n{font-weight:600;overflow-wrap:anywhere}
-.mov .m-i{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15px}
+.mov{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 0;border-bottom:1px solid var(--rule)}
+.mov .ico{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--track);color:var(--ink)}
+.mov .ico svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mov .ico.entra{background:var(--ok-bg);color:var(--ok)}
+.mov .m-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mov .m-n{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mov .m-s{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mov .m-i{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:15.5px;font-weight:500;letter-spacing:-.02em;white-space:nowrap}
 .mov .m-i.mas{color:var(--ok)}
-.mov .m-s{grid-column:1/-1;font-size:13px;color:var(--muted)}
-.vacio{background:var(--paper);border-radius:10px;padding:22px 18px;text-align:center;color:var(--muted)}
+.movs.caja{background:var(--paper);border-radius:16px;padding:2px 14px 2px 12px}
+.movs.caja .mov:last-child{border-bottom:0}
+.vacio{background:var(--paper);border-radius:16px;padding:22px 18px;text-align:center;color:var(--muted)}
 .vacio strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
 
 /* Cuentas */
@@ -224,11 +224,15 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .sel{border:1.5px solid var(--rule);border-radius:8px;background:var(--paper);padding:9px 8px;font-size:16px;max-width:168px}
 
 /* Presupuestos (edición) */
-.pres{display:flex;flex-direction:column}
-.pre{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--rule)}
+.pres{display:flex;flex-direction:column;gap:10px}
+.pre{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;align-items:center;padding:12px 14px 12px 12px;background:var(--paper);border-radius:16px}
+.pre .ico{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--track);color:var(--ink)}
+.pre .ico svg{display:block;width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .pre-barra{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;padding-bottom:4px}
-.pre-total{display:flex;flex-direction:column;gap:7px}
-.pre label{font-weight:600;overflow-wrap:anywhere}
+.pre-total{display:flex;flex-direction:column;gap:7px;background:var(--paper);border-radius:16px;padding:16px}
+.pre label{font-weight:600;font-size:15.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pre .quitar{grid-column:1/-1;grid-row:3;justify-self:end;padding:2px 0 0;min-width:0}
+.pre .quitar:empty{display:none}
 .pre label small{display:block;font-weight:400;font-size:12.5px;color:var(--muted)}
 .campo-eur{display:flex;align-items:center;gap:6px;border:1.5px solid var(--rule);border-radius:8px;padding:0 10px;background:var(--paper)}
 .campo-eur:focus-within{border-color:var(--accent)}
@@ -301,7 +305,7 @@ dialog.candado::backdrop{background:var(--bg)}
 /* Ahorro */
 .total.pos{color:var(--ok)}
 .objs{display:flex;flex-direction:column;gap:10px}
-.obj{background:var(--paper);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;width:100%;text-align:left}
+.obj{background:var(--paper);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;width:100%;text-align:left}
 .obj .fila{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .obj .nombre{font-weight:700;font-size:15.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .obj .cifra{flex:none;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:16.5px;font-weight:500;letter-spacing:-.02em}
@@ -331,7 +335,7 @@ dialog.candado::backdrop{background:var(--bg)}
 .claves{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);padding:6px 6px 2px}
 .claves span{display:inline-flex;align-items:center;gap:6px}
 .claves i{width:10px;height:10px;border-radius:3px}
-.papeles{background:var(--paper);border-radius:10px;padding:4px 16px}
+.papeles{background:var(--paper);border-radius:16px;padding:4px 16px}
 .papel{display:flex;flex-direction:column;gap:8px;padding:12px 0}
 .papel+.papel{border-top:1px solid var(--rule)}
 .papel .nombre{font-weight:700}
@@ -836,10 +840,13 @@ dialog.candado::backdrop{background:var(--bg)}
       sub.push((a ? a.nombre : '?') + ' → ' + (b ? b.nombre : '?'));
     } else if (cu) sub.push(cu.nombre); else if (g.tarjeta) sub.push(g.tarjeta);
     sub.push(conFecha === true ? fechaHora(g.fecha) : (g.origen || 'A mano'));
-    return '<button class="mov" type="button" data-gasto="' + esc(g.id) + '">' +
-      '<span class="m-n">' + esc(g.comercio || 'Sin nombre') + '</span>' +
-      '<span class="m-i' + (t === 'ingreso' ? ' mas' : '') + '">' + esc((t === 'ingreso' ? '+' : '') + eur(g.importe)) + '</span>' +
-      '<span class="m-s">' + esc(sub.join(' · ')) + '</span></button>';
+    var ico = t === 'ingreso' ? '<span class="ico entra" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span>'
+      : t === 'traspaso' ? '<span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span>'
+      : iconoCat(gastoDe(g) || g.categoria || 'Otros');
+    return '<button class="mov" type="button" data-gasto="' + esc(g.id) + '">' + ico +
+      '<span class="m-t"><span class="m-n">' + esc(g.comercio || 'Sin nombre') + '</span>' +
+      '<span class="m-s">' + esc(sub.join(' · ')) + '</span></span>' +
+      '<span class="m-i' + (t === 'ingreso' ? ' mas' : '') + '">' + esc((t === 'ingreso' ? '+' : '') + eur(g.importe)) + '</span></button>';
   }
   function tituloDia(clave) {
     var p = clave.split('-').map(Number), d = new Date(p[0], p[1] - 1, p[2]);
@@ -992,7 +999,7 @@ dialog.candado::backdrop{background:var(--bg)}
       });
       grupos.forEach(function (gr) {
         h += '<div><div class="dia"><span>' + esc(tituloDia(gr.k)) + '</span><span class="num">' + esc(eur(gr.suma)) + '</span></div>' +
-          '<div class="movs">' + gr.items.map(filaMov).join('') + '</div></div>';
+          '<div class="movs caja">' + gr.items.map(filaMov).join('') + '</div></div>';
       });
     }
     h += '</section>';
@@ -1016,7 +1023,7 @@ dialog.candado::backdrop{background:var(--bg)}
     h += '<div class="pres">';
     D.cats.forEach(function (c) {
       var resto = c.limite - c.gastado;
-      h += '<div class="pre"><label for="pre-' + esc(c.id) + '">' + esc(c.nombre) + '<small>' + esc(eur(c.gastado)) + ' en ' + esc(soloMes(S.mes)) + '</small></label>' +
+      h += '<div class="pre">' + iconoCat(c.nombre) + '<label for="pre-' + esc(c.id) + '">' + esc(c.nombre) + '<small>' + esc(eur(c.gastado)) + ' en ' + esc(soloMes(S.mes)) + '</small></label>' +
         '<div class="campo-eur"><input id="pre-' + esc(c.id) + '" inputmode="decimal" autocomplete="off" data-pid="' + esc(c.id) + '" data-nombre="' + esc(c.nombre) + '" data-existe="' + (c.existe ? 1 : 0) + '" value="' + (c.limite > 0 ? String(c.limite).replace('.', ',') : '') + '" placeholder="0"><span>€</span></div>' +
         (c.existe ? '<button class="quitar" type="button" data-quitar="' + esc(c.id) + '">Quitar</button>' : '<span class="quitar"></span>') +
         '<div class="pre-barra">' + barra(c.gastado, c.limite, D.r, false) +
@@ -1108,7 +1115,7 @@ dialog.candado::backdrop{background:var(--bg)}
     if (dudas.length) {
       h += '<section class="sec"><header><h2>Sin identificar</h2><span class="num">' + dudas.length + '</span></header>' +
         '<p class="nota">Tu banco ha avisado de estos movimientos sin decir qué son. Toca cada uno para ponerle nombre y categoría.</p>' +
-        '<div class="movs">' + dudas.slice(0, 10).map(function (g) { return filaMov(g, true); }).join('') + '</div></section>';
+        '<div class="movs caja">' + dudas.slice(0, 10).map(function (g) { return filaMov(g, true); }).join('') + '</div></section>';
     }
     var pend = {}, orden = [];
     if (todas.length) S.todos.forEach(function (g) {
@@ -1291,11 +1298,11 @@ dialog.candado::backdrop{background:var(--bg)}
     var con = grupos.filter(function (g) { return g.n > 0; }), pos = con.reduce(function (a, g) { return a + Math.max(g.v, 0); }, 0);
     var pct = function (v) { var p = v / pos * 100; return !(pos > 0) || v <= 0 ? '' : (p < 1 ? '<1' : String(Math.round(p))) + ' %'; };
     var e = lineaSaldo();
-    h += '<div class="ticket"><div class="eyebrow"><span>Patrimonio</span><span>Hoy</span></div><div class="total' + (total < 0 ? ' neg' : '') + '">' + esc(eur(total)) + '</div>';
-    if (e && Math.abs(e.cambio) >= 0.005) h += '<div class="pie"><span class="pill dinero ' + (e.cambio < 0 ? 'over' : 'ok') + '">' + esc(conSigno(e.cambio)) + ' desde el ' + esc(e.desde) + '</span></div>';
-    if (pos > 0 && con.length > 1) h += '<div class="comp" role="img" aria-label="' + esc('Reparto: ' + con.map(function (g) { return g.nombre + ' ' + eur(g.v) + (pct(g.v) ? ' (' + pct(g.v) + ')' : ''); }).join(', ')) + '">' +
-      con.map(function (g) { return g.v > 0 ? '<i style="flex:' + (g.v / pos).toFixed(4) + ' 1 0;background:' + g.color + '"></i>' : ''; }).join('') + '</div>';
-    h += '<div class="lineas">' + con.map(function (g) {
+    var segs = con.filter(function (g) { return g.v > 0; }).map(function (g) { return { id: g.rol, nombre: g.nombre, v: g.v, color: g.color }; });
+    if (S.grupoSel && !segs.some(function (x) { return x.id === S.grupoSel; })) S.grupoSel = null;
+    h += '<section class="reparto">' + dona(segs, { sel: S.grupoSel, total: total, rotulo: 'Patrimonio', sub: 'Hoy', que: 'Reparto del patrimonio', vacio: 'sin saldo' });
+    if (e && Math.abs(e.cambio) >= 0.005) h += '<div class="pie" style="justify-content:center"><span class="pill dinero ' + (e.cambio < 0 ? 'over' : 'ok') + '">' + esc(conSigno(e.cambio)) + ' desde el ' + esc(e.desde) + '</span></div>';
+    h += '</section><div class="datos"><div class="lineas">' + con.map(function (g) {
       return '<div class="linea"><span class="l"><i class="clave" style="background:' + g.color + '"></i>' + esc(g.nombre) + (con.length > 1 && pct(g.v) ? ' <small>' + pct(g.v) + '</small>' : '') + '</span><i></i><span class="v">' + esc(eur(g.v)) + '</span></div>';
     }).join('') + '</div></div>';
     if (sinSaldo) h += '<p class="nota">' + (sinSaldo === 1 ? 'Falta el saldo de 1 cuenta; no entra en el total.' : 'Falta el saldo de ' + sinSaldo + ' cuentas; no entran en el total.') + '</p>';
@@ -1713,6 +1720,12 @@ dialog.candado::backdrop{background:var(--bg)}
     S.segSel = id && id !== S.segSel ? id : null;
     pintarCuentas();
   });
+  $('#v-patrimonio').addEventListener('click', function (e) {
+    if (!e.target.closest('.rosco')) return;
+    var t = e.target.closest('[data-seg]'), id = t ? t.getAttribute('data-seg') : null;
+    S.grupoSel = id && id !== S.grupoSel ? id : null;
+    pintar();
+  });
   $('#v-resumen').addEventListener('click', function (e) {
     if (!e.target.closest('.rosco')) return;
     var t = e.target.closest('[data-seg]'), id = t ? t.getAttribute('data-seg') : null;
@@ -1866,7 +1879,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-10.2358';
+  var VERSION = '2026-10-14.1938';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
