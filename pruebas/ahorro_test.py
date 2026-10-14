@@ -118,11 +118,11 @@ async def main():
             num = lambda x: float(x.replace("\u00a0", "").replace("€", "").replace(".", "").replace(",", ".").replace("−", "-").strip())
             tot = num(await pg.inner_text("#v-patrimonio .rosco .cifra")); pill = await pg.inner_text("#v-patrimonio .reparto .pill")
             grupos = await pg.eval_on_selector_all("#v-patrimonio .linea", "e => e.map(x => x.querySelector('.l').textContent.trim() + '=' + x.querySelector('.v').textContent)")
-            inv = await pg.eval_on_selector_all("#v-patrimonio .objs .obj", "e => e.map(x => x.dataset.cuenta + ':' + x.querySelector('.logo').textContent)")
+            inv = await pg.eval_on_selector_all("#v-patrimonio .objs .obj", "e => e.map(x => x.dataset.cuenta + ':' + (x.querySelector('.logo img') ? 'img' : x.querySelector('.logo').textContent))")
             lista = await pg.eval_on_selector_all("#v-patrimonio .fila-c", "e => e.map(x => x.dataset.cuenta + ':' + x.querySelector('small').textContent)")
             cab = await pg.inner_text("#mes-txt"); ocultos = [await pg.is_hidden("#mes-ant"), await pg.is_hidden("#mes-sig"), await pg.is_hidden("#nuevo")]; trozos = await pg.locator("#v-patrimonio .rosco .seg").count()
             ok(len(grupos) == 4 and grupos[0].startswith("Día a día") and grupos[1].startswith("Cuenta conjunta") and grupos[2].startswith("Ahorro") and grupos[3].startswith("Inversión") and abs(sum(num(x.split("=")[1]) for x in grupos) - tot) < 0.01
-               and inv == ["mi:MY"] and lista == ["san:Día a día", "rev:Cuenta conjunta", "tr:Ahorro"] and cab == "Patrimonio" and ocultos == [True, True, True] and trozos == 4 and "+2.180,00" in pill,
+               and inv == ["mi:img"] and lista == ["san:Día a día", "rev:Cuenta conjunta", "tr:Ahorro"] and cab == "Patrimonio" and ocultos == [True, True, True] and trozos == 4 and "+2.180,00" in pill,
                "patrimonio: total con inversiones, reparto por grupos, inversiones y cuentas (%s | %s | %s)" % (grupos, inv, lista))
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-patrimonio.png", full_page=True)
             await pg.click('#v-patrimonio .fila-c[data-cuenta="tr"]'); await pg.wait_for_timeout(200); ficha = await pg.input_value("#c-nombre"); await pg.click("#hc-cerrar")
