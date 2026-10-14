@@ -12,8 +12,8 @@
 <meta name="theme-color" content="#111113" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-mg-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-mg-192.png">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&display=swap">
 <style>
@@ -1899,7 +1899,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-14.2144';
+  var VERSION = '2026-10-14.2148';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
