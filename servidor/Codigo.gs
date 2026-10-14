@@ -31,6 +31,16 @@ const FONDO_DATOS = 7;    // columnas que escribe el script; las de lectura no s
 // Página pública de la que la hoja lee cada día el valor liquidativo (con IMPORTXML): se le añade el ISIN.
 // La columna "Lectura" trae el trozo de página en una sola petición; "Lectura precio" y "Lectura fecha" lo trocean.
 const FUENTE_PRECIO = 'https://www.finect.com/fondos-inversion/';
+// Criptomonedas: van en la misma hoja con su símbolo (BTC, ETH…) en lugar de ISIN. Su precio en euros sale de
+// Google Finance y, si no la tiene, de CoinGecko, que la conoce por este nombre (si no está aquí, por el símbolo en minúsculas).
+const CRIPTO_PRECIO = 'https://api.coingecko.com/api/v3/simple/price?vs_currencies=eur&ids=';
+const COINGECKO = { BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana', ADA: 'cardano', XRP: 'ripple', DOGE: 'dogecoin', DOT: 'polkadot',
+  BNB: 'binancecoin', USDT: 'tether', USDC: 'usd-coin', LTC: 'litecoin', BCH: 'bitcoin-cash', AVAX: 'avalanche-2', POL: 'polygon-ecosystem-token',
+  MATIC: 'matic-network', LINK: 'chainlink', TRX: 'tron', SHIB: 'shiba-inu', PEPE: 'pepe', XLM: 'stellar', ATOM: 'cosmos', NEAR: 'near',
+  SUI: 'sui', TON: 'the-open-network', UNI: 'uniswap', ALGO: 'algorand', HBAR: 'hedera-hashgraph', ICP: 'internet-computer', APT: 'aptos',
+  ARB: 'arbitrum', OP: 'optimism', FET: 'fetch-ai', RENDER: 'render-token', INJ: 'injective-protocol', XMR: 'monero',
+  ETC: 'ethereum-classic', VET: 'vechain', FIL: 'filecoin', AAVE: 'aave', CRO: 'crypto-com-chain', SAND: 'the-sandbox',
+  MANA: 'decentraland', TRUMP: 'official-trump', WIF: 'dogwifcoin', BONK: 'bonk', KAS: 'kaspa', SEI: 'sei-network', TAO: 'bittensor' };
 // Correos con los que el bróker confirma cada compra o venta de un fondo: de ahí salen las participaciones.
 const OPERACIONES = { remitente: 'notificaciones@myinvestor.es', asunto: 'OPERACIÓN DE VALORES' };
 
@@ -276,14 +286,21 @@ function leerFondos() {
   });
 }
 
+function criptoValida(valor) {
+  const s = String(valor || '').trim().toUpperCase();
+  return /^[A-Z0-9]{2,10}$/.test(s) && /[A-Z]/.test(s) ? s : '';
+}
+// Identificador de una fila de la hoja Fondos: el ISIN de un fondo o el símbolo de una criptomoneda.
+function idFondo(valor) { return isinValido(valor) || criptoValida(valor); }
+
 function isinValido(valor) {
   const isin = String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   return /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin) ? isin : '';
 }
 
 function guardarFondo(x) {
-  const isin = isinValido(x && x.id);
-  if (!isin) throw new Error('ISIN no válido');
+  const isin = idFondo(x && x.id);
+  if (!isin) throw new Error('ISIN o símbolo no válido');
   const h = hoja('Fondos', H_FONDOS);
   const fila = buscarFila(h, 1, isin);
   const antes = fila ? h.getRange(fila, 1, 1, FONDO_DATOS).getValues()[0] : [];
@@ -305,7 +322,7 @@ function guardarFondo(x) {
 }
 
 function borrarFondo(id) {
-  const r = borrarFila('Fondos', H_FONDOS, 1, isinValido(id) || id);
+  const r = borrarFila('Fondos', H_FONDOS, 1, idFondo(id) || id);
   valorarFondos();
   return r;
 }
@@ -363,13 +380,21 @@ function ponerLecturas(h, vacias, fallidas, hoy) {
   const sep = ingles ? ',' : ';';
   const isines = h.getRange(2, 1, n, 1).getValues();
   for (let i = 0; i < isines.length; i++) {
-    const isin = isinValido(isines[i][0]);
+    const isin = idFondo(isines[i][0]);
     if (!isin) continue;
     const toca = todas || vacias.indexOf(isin) > -1 || (reintento && fallidas.indexOf(isin) > -1);
     if (!toca) continue;
     const sello = (reintento && fallidas.indexOf(isin) > -1 ? hora : hoy).replace(/[-T]/g, '');
-    const url = FUENTE_PRECIO + isin + '-x?d=' + sello;
     const fila = i + 2, celda = 'J' + fila;
+    if (!isinValido(isin)) {   // criptomoneda: Google Finance y, si no la tiene, CoinGecko (responde {"bitcoin":{"eur":56000.1}})
+      const cg = CRIPTO_PRECIO + (COINGECKO[isin] || isin.toLowerCase()) + '&d=' + sello;
+      const crudoC = 'REGEXEXTRACT(' + celda + sep + '"""eur"":([0-9.eE-]+)")';
+      h.getRange(fila, 10).setFormula('=IFERROR(GOOGLEFINANCE("CURRENCY:' + isin + 'EUR")' + sep + 'TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTDATA("' + cg + '")))');
+      h.getRange(fila, 8).setFormula('=IF(ISNUMBER(' + celda + ')' + sep + celda + sep + (ingles ? 'VALUE(' + crudoC + ')' : 'VALUE(SUBSTITUTE(' + crudoC + sep + '"."' + sep + '","))') + ')');
+      h.getRange(fila, 9).setFormula('=TODAY()');
+      continue;
+    }
+    const url = FUENTE_PRECIO + isin + '-x?d=' + sello;
     const crudo = 'REGEXEXTRACT(' + celda + sep + '"""price"":""?([0-9.]+)")';
     h.getRange(fila, 10).setFormula('=TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTXML("' + url + '"' + sep +
       '"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | ' +

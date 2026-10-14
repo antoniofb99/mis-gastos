@@ -517,12 +517,12 @@ dialog.candado::backdrop{background:var(--bg)}
       <p class="nota" id="c-aportado-nota">Con esto la app calcula cuánto has ganado o perdido. Las aportaciones nuevas se suman solas.</p>
     </div>
     <fieldset class="grupo" id="c-fondos-grupo" hidden>
-      <legend>Fondos y participaciones</legend>
+      <legend>Fondos, criptos y cantidades</legend>
       <div id="c-fondos"></div>
       <div class="c-nuevo">
-        <input class="texto" id="c-f-isin" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="ISIN de un fondo nuevo" aria-label="ISIN de un fondo nuevo">
+        <input class="texto" id="c-f-isin" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="ISIN de un fondo o símbolo de una cripto (ETH, BTC…)" aria-label="ISIN de un fondo nuevo o símbolo de una criptomoneda">
         <input class="texto" id="c-f-nombre" autocomplete="off" maxlength="40" placeholder="Nombre" aria-label="Nombre del fondo nuevo">
-        <input class="texto" id="c-f-part" inputmode="decimal" autocomplete="off" placeholder="Participaciones" aria-label="Participaciones del fondo nuevo">
+        <input class="texto" id="c-f-part" inputmode="decimal" autocomplete="off" placeholder="Participaciones o cantidad" aria-label="Participaciones o cantidad">
       </div>
       <p class="nota">Las compras y ventas que tu bróker confirma por correo se suman solas. Si algún número no cuadra con el del bróker, corrígelo aquí. Para quitar un fondo, deja sus participaciones vacías.</p>
     </fieldset>
@@ -730,7 +730,17 @@ dialog.candado::backdrop{background:var(--bg)}
   }
   function valorFondo(f) { return typeof f.participaciones === 'number' && typeof f.precio === 'number' ? f.participaciones * f.precio : null; }
   function numero(n, dec) { return (Number(n) || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec }); }
-  function precioTxt(p) { return numero(p, 4).replace(/0{1,2}$/, ''); }   // hasta cuatro decimales, mínimo dos
+  function precioTxt(p) { var d = Math.abs(p) >= 1 ? 4 : 8, t = numero(p, d); while (d > 2 && /0$/.test(t)) { t = t.slice(0, -1); d--; } return t; }   // mínimo dos decimales; más si hacen falta
+  function esCripto(id) { return !/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(String(id)); }
+  function cantidadTxt(n) { return (Number(n) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 8 }); }
+  /* Cantidades (participaciones, criptos): hasta ocho decimales, y un punto suelto siempre es decimal. */
+  function leerCantidad(valor) {
+    var t = String(valor == null ? '' : valor).trim().replace(/\s/g, '');
+    if (!/[0-9]/.test(t)) return '';
+    if (t.indexOf(',') > -1) t = t.replace(/\./g, '').replace(',', '.');
+    var n = parseFloat(t.replace(/[^0-9.-]/g, ''));
+    return isNaN(n) ? '' : Math.round(n * 1e8) / 1e8;
+  }
   function diaCorto(d) { return d ? Number(String(d).slice(8, 10)) + ' ' + MES_CORTO[Number(String(d).slice(5, 7)) - 1] : ''; }
   /* Traspasos netos de un mes hacia las cuentas de ahorro y de inversión, y lo que ha entrado. */
   function flujoMes(mes) {
@@ -1213,7 +1223,7 @@ dialog.candado::backdrop{background:var(--bg)}
       h += '<span class="fondos">' + fs.map(function (f) {
         var vf = valorFondo(f);
         return '<span class="fondo"><span class="f-n">' + esc(f.nombre || f.id) + '</span><span class="f-v">' + (vf === null ? 'Sin precio' : esc(eur(vf))) + '</span>' +
-          '<span class="f-d">' + esc(typeof f.participaciones === 'number' ? numero(f.participaciones, 2) + ' part.' : 'Sin participaciones') +
+          '<span class="f-d">' + esc(typeof f.participaciones === 'number' ? cantidadTxt(f.participaciones) + (esCripto(f.id) ? ' ' + f.id : ' part.') : 'Sin participaciones') +
           (typeof f.precio === 'number' ? ' × ' + esc(precioTxt(f.precio)) + ' €' + (f.fechaPrecio ? ' · precio del ' + esc(diaCorto(f.fechaPrecio)) : '') : '') + '</span></span>';
       }).join('') + '</span>';
     }
@@ -1552,7 +1562,7 @@ dialog.candado::backdrop{background:var(--bg)}
     $('#c-rol-grupo').hidden = !DB.moderno();
     $('#c-fondos').innerHTML = (c ? fondosDe(c.id) : []).map(function (f, i) {
       return '<div class="c-fondo"><strong>' + esc(f.nombre || f.id) + '</strong><small>' + esc(f.id) + (typeof f.precio === 'number' ? ' · ' + esc(precioTxt(f.precio)) + ' €' + (f.fechaPrecio ? ' el ' + esc(diaCorto(f.fechaPrecio)) : '') : ' · sin precio todavía') + '</small>' +
-        '<input class="texto" id="c-part-' + i + '" data-fondo="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="Participaciones de ' + esc(f.nombre || f.id) + '" value="' + (typeof f.participaciones === 'number' ? String(f.participaciones).replace('.', ',') : '') + '"></div>';
+        '<input class="texto" id="c-part-' + i + '" data-fondo="' + esc(f.id) + '" inputmode="decimal" autocomplete="off" aria-label="Participaciones de ' + esc(f.nombre || f.id) + '" value="' + (typeof f.participaciones === 'number' ? cantidadTxt(f.participaciones).replace(/\./g, '') : '') + '"></div>';
     }).join('');
     $('#c-f-isin').value = ''; $('#c-f-nombre').value = ''; $('#c-f-part').value = '';
     ajustarRol();
@@ -1605,17 +1615,17 @@ dialog.candado::backdrop{background:var(--bg)}
     var misFondos = c && datos.rol === 'inversion' ? fondosDe(c.id) : [], cambios = [];
     if (c && datos.rol === 'inversion' && DB.moderno()) {
       document.querySelectorAll('#c-fondos input[data-fondo]').forEach(function (inp) {
-        var f = misFondos.find(function (x) { return x.id === inp.dataset.fondo; }), p = leerImporte(inp.value);
+        var f = misFondos.find(function (x) { return x.id === inp.dataset.fondo; }), p = leerCantidad(inp.value);
         if (!f) return;
         if (p === '') cambios.push({ id: f.id, borrar: true });
         else if (p !== f.participaciones) cambios.push({ id: f.id, datos: { participaciones: p, fechaParticipaciones: ahoraISO() } });
       });
-      var isin = $('#c-f-isin').value.toUpperCase().replace(/[^A-Z0-9]/g, ''), pn = leerImporte($('#c-f-part').value);
+      var isin = $('#c-f-isin').value.trim().toUpperCase().replace(/\s/g, ''), pn = leerCantidad($('#c-f-part').value);
       if (isin) {
-        if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin)) { $('#c-error').textContent = 'Ese ISIN no es válido: son 12 caracteres, por ejemplo IE00BYX5MX67.'; return; }
-        if (pn === '' || !(pn > 0)) { $('#c-error').textContent = 'Pon las participaciones del fondo nuevo.'; return; }
+        if (!/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin) && !(/^[A-Z0-9]{2,10}$/.test(isin) && /[A-Z]/.test(isin))) { $('#c-error').textContent = 'Pon el ISIN de un fondo (12 caracteres, por ejemplo IE00BYX5MX67) o el símbolo de una cripto (por ejemplo ETH).'; return; }
+        if (pn === '' || !(pn > 0)) { $('#c-error').textContent = 'Pon cuántas participaciones o monedas tienes.'; return; }
         if (S.fondos.some(function (x) { return x.id === isin; })) { $('#c-error').textContent = 'Ese fondo ya está en la lista.'; return; }
-        cambios.push({ id: isin, nuevo: true, datos: { nombre: $('#c-f-nombre').value.trim() || isin, cuenta: c.id, participaciones: pn, fechaParticipaciones: ahoraISO(), precio: null, fechaPrecio: '' } });
+        cambios.push({ id: isin, nuevo: true, datos: { nombre: $('#c-f-nombre').value.trim() || ({ BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', XRP: 'XRP', ADA: 'Cardano', DOGE: 'Dogecoin' }[isin]) || isin, cuenta: c.id, participaciones: pn, fechaParticipaciones: ahoraISO(), precio: null, fechaPrecio: '' } });
       }
     }
     if (!misFondos.length && v !== '' && v !== actual) { datos.saldo = v; datos.fechaSaldo = ahoraISO(); }

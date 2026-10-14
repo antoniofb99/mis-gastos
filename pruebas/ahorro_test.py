@@ -170,12 +170,18 @@ async def main():
             await pg.click('#v-ahorro .obj[data-cuenta="mi"]'); await pg.wait_for_timeout(200)
             v = [await pg.is_visible("#c-fondos-grupo"), await pg.is_disabled("#c-saldo"), await pg.locator(".c-fondo").count(), await pg.input_value('[data-fondo="IE00BYX5MX67"]')]
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-fondos-2.png")
-            await pg.fill('[data-fondo="IE00BYX5MX67"]', "430,5"); await pg.fill("#c-f-isin", "malo"); await pg.fill("#c-f-part", "10"); await pg.click("#c-guardar"); e1 = await pg.inner_text("#c-error")
+            await pg.fill('[data-fondo="IE00BYX5MX67"]', "430,5"); await pg.fill("#c-f-isin", "no vale!"); await pg.fill("#c-f-part", "10"); await pg.click("#c-guardar"); e1 = await pg.inner_text("#c-error")
             await pg.fill("#c-f-isin", "ie00b03hcz61"); await pg.fill("#c-f-nombre", "Vanguard Global"); await pg.click("#c-guardar"); await pg.wait_for_timeout(600)
-            ok(v == [True, True, 2, "422,02"] and "no es válido" in e1 and f("IE00BYX5MX67")["participaciones"] == 430.5 and f("IE00BYX5MX67")["fechaParticipaciones"] > HOY + "T00:10:00" and f("IE00BYX5MX67")["nombre"].startswith("Fidelity") and f("ES0165265002")["participaciones"] == 500.82 and f("ES0165265002")["fechaParticipaciones"] == HOY + "T00:10:00"
+            ok(v == [True, True, 2, "422,02"] and "Pon el ISIN" in e1 and f("IE00BYX5MX67")["participaciones"] == 430.5 and f("IE00BYX5MX67")["fechaParticipaciones"] > HOY + "T00:10:00" and f("IE00BYX5MX67")["nombre"].startswith("Fidelity") and f("ES0165265002")["participaciones"] == 500.82 and f("ES0165265002")["fechaParticipaciones"] == HOY + "T00:10:00"
                and f("IE00B03HCZ61") and f("IE00B03HCZ61")["cuenta"] == "mi" and f("IE00B03HCZ61")["participaciones"] == 10 and c("mi")["saldo"] == 9000 and c("mi")["aportado"] == 8000, "fondos: en la ficha se cambian las participaciones y se añade un fondo por su ISIN, sin tocar el valor a mano")
             await pg.click('#v-ahorro .obj[data-cuenta="mi"]'); await pg.wait_for_timeout(200); await pg.fill('[data-fondo="IE00B03HCZ61"]', ""); await pg.click("#c-guardar"); await pg.wait_for_timeout(600)
             ok(f("IE00B03HCZ61") is None and len(bd["fondos"]) == 2, "fondos: dejar las participaciones vacías quita el fondo")
+            await pg.click('#v-ahorro .obj[data-cuenta="mi"]'); await pg.wait_for_timeout(200); await pg.fill("#c-f-isin", "eth"); await pg.fill("#c-f-part", "0,27318532"); await pg.click("#c-guardar"); await pg.wait_for_timeout(600)
+            eth = f("ETH"); eth and eth.update(precio=2219.4, fechaPrecio=HOY); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(600)
+            mi = await pg.inner_text('#v-ahorro .obj[data-cuenta="mi"]')
+            ok(eth and eth["participaciones"] == 0.27318532 and eth["nombre"] == "Ethereum" and eth["cuenta"] == "mi" and "0,27318532 ETH × 2219,40 €" in mi, "cripto: se añade por su símbolo, con todos sus decimales, y se ve su cantidad y precio (%s)" % mi.replace("\n", " | "))
+            await pg.click('#v-ahorro .obj[data-cuenta="mi"]'); await pg.wait_for_timeout(200); vv = await pg.input_value('[data-fondo="ETH"]'); await pg.fill('[data-fondo="ETH"]', ""); await pg.click("#c-guardar"); await pg.wait_for_timeout(600)
+            ok(vv == "0,27318532" and f("ETH") is None, "cripto: la ficha enseña la cantidad exacta y se puede quitar (%s)" % vv)
             await pg.click('#v-ahorro .obj[data-cuenta="tr"]'); await pg.wait_for_timeout(200); sinf = await pg.is_hidden("#c-fondos-grupo") and await pg.is_enabled("#c-saldo"); await pg.click("#hc-cerrar")
             ok(sinf, "fondos: en una cuenta que no es de inversión no aparecen")
             await pg.reload(); await pg.wait_for_timeout(400)

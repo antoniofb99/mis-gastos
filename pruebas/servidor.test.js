@@ -254,6 +254,17 @@ ok(t.fondos[0].precio === 17.5 && t.fondos[0].fechaPrecio === '2026-10-09', 'fon
 hojas.Fondos.f[1][7] = 17.5; props.lecturaDia = '2000-01-01'; t = post({ clave: 'k', accion: 'leer' });
 ok(props.lecturaDia === hoyFondos && /^=VALUE\(SUBSTITUTE\(REGEXEXTRACT/.test(hojas.Fondos.f[1][7]) && t.fondos[0].precio === 17.5, 'fondos: al cambiar de día las fórmulas se reescriben para volver a pedir la página');
 hojas.Fondos.f[1][7] = 17.5;
+// criptomonedas: se guardan por su símbolo y su precio sale de Google Finance o, si no, de CoinGecko
+ok(post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'eth', nombre: 'Ethereum', cuenta: 'mi', participaciones: 0.27318532, fechaParticipaciones: '2026-10-11T09:00:00' } }).ok, 'cripto: se guarda por su símbolo');
+const filaEth = hojas.Fondos.f.findIndex(f => f[0] === 'ETH');
+ok(filaEth > 0 && hojas.Fondos.f[filaEth][3] === 0.27318532 && /^=IFERROR\(GOOGLEFINANCE\("CURRENCY:ETHEUR"\);TEXTJOIN\(" ";TRUE;IMPORTDATA\("https:\/\/api\.coingecko\.com\/api\/v3\/simple\/price\?vs_currencies=eur&ids=ethereum&d=\d+"\)\)\)$/.test(hojas.Fondos.f[filaEth][9])
+  && /^=IF\(ISNUMBER\(J\d+\);J\d+;VALUE\(SUBSTITUTE\(REGEXEXTRACT/.test(hojas.Fondos.f[filaEth][7]) && hojas.Fondos.f[filaEth][8] === '=TODAY()', 'cripto: recibe la fórmula de su precio en euros (' + hojas.Fondos.f[filaEth][9] + ')');
+hojas.Fondos.f[filaEth][7] = 2219.4; hojas.Fondos.f[filaEth][8] = '';
+t = post({ clave: 'k', accion: 'leer' });
+const eth = t.fondos.find(f => f.id === 'ETH');
+ok(eth && eth.precio === 2219.4 && ct('mi').saldo === Math.round((110 * 17.5 + 0.27318532 * 2219.4) * 100) / 100, 'cripto: su valor se suma a la cuenta (' + ct('mi').saldo + ')');
+ok(post({ clave: 'k', accion: 'fondo.guardar', fondo: { id: 'no-es-isin', participaciones: 1 } }).ok === false, 'cripto: un texto con guiones no se toma por símbolo');
+post({ clave: 'k', accion: 'fondo.borrar', id: 'ETH' });
 
 // ---------------------------------------------------------------- compras confirmadas por correo
 const MI = 'notificaciones@myinvestor.es';
@@ -272,6 +283,7 @@ operacion('o1', new Date(2026, 9, 12, 4, 19).getTime(), { fo: '09/10/2026', fv: 
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.operaciones.nuevas === 1 && t.operaciones.aplicadas === 1 && t.fondos[0].participaciones === 110 && t.fondos[0].precio === 17.5 && ct('mi').aportado === 5230, 'operaciones: una compra anterior al día en que se anotaron las participaciones no las cambia, pero sí suma lo aportado');
 hojas.Fondos.f[1][7] = '';   // sin lectura de precio, para ver el que trae el correo
+hojas.Fondos.f[1][6] = "'2026-10-09";   // precio anterior al del correo (no depende del día en que se pasa la prueba)
 operacion('o2', new Date(2026, 9, 12, 9, 30).getTime(), { fo: '12/10/2026', fv: '13/10/2026', tipo: 'SUSCRIPCION', nombre: 'S&P 500 INDEX P ACC EUR', isin: 'IE00BYX5MX67', tit: '193.027', pre: '12.9515', imp: '2,500.00' });
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos[0].participaciones === 303.027 && t.fondos[0].fechaParticipaciones === '2026-10-12T09:30:00' && t.fondos[0].precio === 12.9515 && t.fondos[0].fechaPrecio === '2026-10-13' && ct('mi').aportado === 7730 && ct('mi').fechaAportado === '2026-10-12T09:30:00' && ct('mi').saldo === Math.round(303.027 * 12.9515 * 100) / 100 && ct('mi').fechaSaldo === '2026-10-12T09:30:00', 'operaciones: una compra nueva suma participaciones, precio y aportado (lee 2,500.00) y la cuenta se recalcula');
