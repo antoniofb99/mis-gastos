@@ -223,9 +223,9 @@ t = post({ clave: 'k', accion: 'leer' });
 ok(t.fondos.length === 2 && t.fondos[1].precio === null && ct('mi').saldo === 1713, 'fondos: si a un fondo le falta el precio, el valor de la cuenta no se toca');
 const sello = hoyFondos.replace(/-/g, '');
 ok(props.lecturaDia === hoyFondos && hojas.Fondos.f[0][9] === 'Lectura'
-  && hojas.Fondos.f[1][9] === '=TEXTJOIN(" ";TRUE;IMPORTXML("https://www.finect.com/fondos-inversion/IE00BYX5MX67-x?d=' + sello + '";"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | //*[contains(.,\'Fecha de valor liquidativo\')][not(*[contains(.,\'Fecha de valor liquidativo\')])]"))'
+  && hojas.Fondos.f[1][9] === '=TEXTJOIN(" ";TRUE;IMPORTXML("https://www.finect.com/fondos-inversion/IE00BYX5MX67-x?d=' + sello + '";"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | //*[contains(.,\'Fecha de valor liquidativo\')][not(*[contains(.,\'Fecha de valor liquidativo\')])] | //*[contains(text(),\'Datos a \')]"))'
   && hojas.Fondos.f[1][7] === '=VALUE(SUBSTITUTE(REGEXEXTRACT(J2;"""price"":""?([0-9.]+)");".";","))'
-  && hojas.Fondos.f[2][8] === '=REGEXEXTRACT(J3;"liquidativo:\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")' && /ES0165265002-x\?d=/.test(hojas.Fondos.f[2][9]), 'fondos: cada fondo recibe las fórmulas que leen su precio y su fecha');
+  && hojas.Fondos.f[2][8] === '=REGEXEXTRACT(J3;"(?:liquidativo:|Datos a)\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")' && /ES0165265002-x\?d=/.test(hojas.Fondos.f[2][9]), 'fondos: cada fondo recibe las fórmulas que leen su precio y su fecha');
 const filaNasdaq = hojas.Fondos.f.findIndex(f => f[0] === 'ES0165265002');
 hojas.Fondos.f[filaNasdaq][7] = 1.83; hojas.Fondos.f[filaNasdaq][8] = '7/10/2026';
 hojas.Fondos.f[1][7] = '#REF!';

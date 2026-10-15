@@ -398,9 +398,10 @@ function ponerLecturas(h, vacias, fallidas, hoy) {
     const crudo = 'REGEXEXTRACT(' + celda + sep + '"""price"":""?([0-9.]+)")';
     h.getRange(fila, 10).setFormula('=TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTXML("' + url + '"' + sep +
       '"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | ' +
-      '//*[contains(.,\'Fecha de valor liquidativo\')][not(*[contains(.,\'Fecha de valor liquidativo\')])]"))');   // sin paréntesis: la hoja no admite (…)[last()] dentro de una unión
+      '//*[contains(.,\'Fecha de valor liquidativo\')][not(*[contains(.,\'Fecha de valor liquidativo\')])] | ' +
+      '//*[contains(text(),\'Datos a \')]"))');   // Finect pone la fecha de una forma u otra según la página   // sin paréntesis: la hoja no admite (…)[last()] dentro de una unión
     h.getRange(fila, 8).setFormula(ingles ? '=VALUE(' + crudo + ')' : '=VALUE(SUBSTITUTE(' + crudo + sep + '"."' + sep + '","))');
-    h.getRange(fila, 9).setFormula('=REGEXEXTRACT(' + celda + sep + '"liquidativo:\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")');
+    h.getRange(fila, 9).setFormula('=REGEXEXTRACT(' + celda + sep + '"(?:liquidativo:|Datos a)\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")');
   }
   if (todas) props.setProperty('lecturaDia', hoy);
   if (reintento) props.setProperty('lecturaHora', hora);
