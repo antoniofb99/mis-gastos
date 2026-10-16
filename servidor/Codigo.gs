@@ -85,11 +85,16 @@ function doPost(e) {
     return responder({ ok: false, error: 'Clave incorrecta' });
   }
 
+  const accion = datos.accion || 'pago';
   const candado = LockService.getScriptLock();
   try {
-    candado.waitLock(20000);
-    switch (datos.accion || 'pago') {
+    // Un pago de Apple Pay no espera a que acabe otra cosa (p. ej. la app leyendo el correo, que tarda):
+    // si el atajo se queda esperando, iOS lo corta y el pago se pierde. Apuntar una fila no necesita el candado.
+    if (accion === 'pago' || accion === 'pagos') candado.tryLock(2000); else candado.waitLock(20000);
+    switch (accion) {
       case 'pago': return responder(apuntarPago(datos));
+      // Varios pagos de golpe (los que el atajo no pudo enviar antes). Cada uno lleva su id y no se apunta dos veces.
+      case 'pagos': return responder({ ok: true, pagos: (datos.pagos || []).map(function (p) { return apuntarPago(Object.assign({}, p, { clave: undefined })); }) });
       case 'leer': {
         const correo = sincronizarSinRomper();
         const operaciones = operacionesSinRomper();
@@ -134,6 +139,9 @@ function apuntarPago(datos) {
     return { ok: true, prueba: true, mensaje: 'Conexión correcta. No se ha apuntado nada porque no venía ni comercio ni importe.' };
   }
   const h = hoja('Gastos', H_GASTOS);
+  // Con id propio (lo pone el atajo), el mismo pago enviado dos veces se apunta una sola.
+  const idPropio = String(datos.id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
+  if (idPropio && buscarFila(h, 8, idPropio)) return { ok: true, id: idPropio, comercio: comercio, importe: importe, repetido: true, mensaje: 'Ese pago ya estaba apuntado.' };
   // Mismo comercio e importe en menos de un minuto: es el mismo pago repetido (p. ej. una tarjeta
   // rechazada y luego otra). Se queda el último: en esa fila se ponen la fecha y la tarjeta nuevas.
   const repetida = pagoRepetido(h, comercio, importe, new Date());
@@ -143,7 +151,7 @@ function apuntarPago(datos) {
     return { ok: true, id: repetida.id, comercio: comercio, importe: importe, repetido: true,
       mensaje: 'Pago repetido en menos de un minuto: se ha quedado solo el último.' };
   }
-  const id = nuevoId();
+  const id = idPropio || nuevoId();
   h.appendRow([
     new Date(),
     texto(comercio),

@@ -40,7 +40,8 @@ global.Gmail = { Users: { Messages: {
 } } };
 global.PropertiesService = { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = v; } }) };
 global.ScriptApp = { getProjectTriggers: () => disparadores.map(f => ({ getHandlerFunction: () => f })), newTrigger: f => ({ timeBased() { return this; }, everyMinutes() { return this; }, create() { disparadores.push(f); } }) };
-global.LockService = { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) };
+let esperas = [];
+global.LockService = { getScriptLock: () => ({ waitLock(ms) { esperas.push('wait' + ms); }, tryLock(ms) { esperas.push('try' + ms); return false; }, releaseLock() {} }) };
 global.ContentService = { MimeType: { JSON: 'json' }, createTextOutput: t => ({ t, setMimeType() { return this; } }) };
 const src = fs.readFileSync(__dirname + '/../servidor/Codigo.gs', 'utf8').replace("CAMBIA-ESTA-CLAVE", 'k');
 const api = new Function(src + '; return { doPost, doGet, categorizar };')();
@@ -316,4 +317,11 @@ const idUltimo = filasGastos().slice(-1)[0].id, filaU = hojas.Gastos.f.findIndex
 hojas.Gastos.f[filaU][8] = 'banco-santander';
 post({ clave: 'k', comercio: 'Cafe Bar Miguelito', importe: '122,70 €', tarjeta: 'Trade Republic Visa Card' });
 ok(filasGastos().length === 4, 'repetido: no toca un pago que ya has asignado a mano a una cuenta');
+esperas = [];
+let pid = post({ clave: 'k', comercio: 'Tienda El Barat', importe: '28,70 €', tarjeta: 'Santander', id: 'tr-20261016-2003' });
+let pid2 = post({ clave: 'k', comercio: 'Tienda El Barat', importe: '28,70 €', tarjeta: 'Santander', id: 'tr-20261016-2003' });
+ok(pid.ok && pid.id === 'tr-20261016-2003' && pid2.repetido && post({ clave: 'k', accion: 'leer' }).gastos.filter(q => q.comercio === 'Tienda El Barat').length === 1, 'pago con id propio: reenviarlo no lo duplica');
+ok(esperas[0] === 'try2000' && esperas.indexOf('wait20000') > 0, 'un pago no espera al candado (aunque esté ocupado se apunta); leer sí espera');
+let lote = post({ clave: 'k', accion: 'pagos', pagos: [{ comercio: 'Family Cash', importe: '2,25', tarjeta: 'Revolut', id: 'p1' }, { comercio: 'Tienda El Barat', importe: '28,70', tarjeta: 'Santander', id: 'tr-20261016-2003' }] });
+ok(lote.ok && lote.pagos.length === 2 && !lote.pagos[0].repetido && lote.pagos[1].repetido, 'varios pagos de golpe: apunta los nuevos y salta los que ya estaban');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);
