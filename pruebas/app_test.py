@@ -91,13 +91,14 @@ async def main():
             num = lambda x: float(x.replace("\u00a0€", "").replace(".", "").replace(",", "."))
             ok(abs(num(despues) - num(antes) - 2.01) < 0.001 and "Ingresos del mes" in lineas and "+1,00" in lineas, "el gasto sin identificar cuenta en el mes y el ingreso no (%s -> %s)" % (antes, despues))
             await pg.click('[data-tab="cuentas"]'); await pg.wait_for_timeout(400)
-            vis = lambda: pg.evaluate("document.querySelector('main .vista:not([hidden])').id")
-            await pg.evaluate(DESLIZA + "(-120, 6)"); await pg.wait_for_timeout(50); d1 = [await vis(), await pg.evaluate("document.querySelector('#v-resumen').className")]
-            await pg.wait_for_timeout(450); await pg.evaluate(DESLIZA + "(130, 0)"); await pg.wait_for_timeout(450); d2 = await vis()
+            vis = lambda: pg.evaluate("document.querySelector('main .vista:not([hidden]):not(.sale)').id")
+            await pg.evaluate(DESLIZA + "(-120, 6)"); await pg.wait_for_timeout(50); d1 = [await vis(), await pg.evaluate("[document.querySelector('#v-cuentas').className, document.querySelector('#v-resumen').getAnimations().length > 0]")]
+            pil = await pg.evaluate("(() => { const p = document.querySelector('.tabs .pildora').getBoundingClientRect(), b = document.querySelector('.tabs [data-tab=resumen]').getBoundingClientRect(); return Math.abs((p.left + p.width / 2) - (b.left + b.width / 2)) })()")
+            await pg.wait_for_timeout(600); pil = await pg.evaluate("(() => { const p = document.querySelector('.tabs .pildora').getBoundingClientRect(), b = document.querySelector('.tabs [data-tab=resumen]').getBoundingClientRect(); return [Math.abs((p.left + p.width / 2) - (b.left + b.width / 2)) < 1, document.querySelectorAll('main .vista:not([hidden])').length] })()"); await pg.evaluate(DESLIZA + "(130, 0)"); await pg.wait_for_timeout(450); d2 = await vis()
             await pg.evaluate(DESLIZA + "(140, 0)"); await pg.wait_for_timeout(450); d3 = await vis()
             await pg.evaluate(DESLIZA + "(-30, 0)"); await pg.wait_for_timeout(450); d4 = await vis()
             await pg.evaluate(DESLIZA + "(-60, -150)"); await pg.wait_for_timeout(450); d5 = [await vis(), await pg.evaluate("document.querySelector('#v-cuentas').style.transform")]
-            ok(d1 == ["v-resumen", "vista entra-d"] and d2 == "v-cuentas" and d3 == "v-cuentas" and d4 == "v-cuentas" and d5 == ["v-cuentas", ""], "deslizar de lado cambia de pestaña con transición; corto, vertical o antes de la primera, no (%s %s %s %s %s)" % (d1, d2, d3, d4, d5))
+            ok(d1 == ["v-resumen", ["vista sale", True]] and d2 == "v-cuentas" and d3 == "v-cuentas" and d4 == "v-cuentas" and d5 == ["v-cuentas", ""] and pil == [True, 1], "deslizar de lado cambia de pestaña con transición; corto, vertical o antes de la primera, no; la píldora del menú acaba en la pestaña nueva y la vieja se esconde (%s %s %s %s %s %s)" % (d1, d2, d3, d4, d5, pil))
             await pg.click('[data-gasto="gb2"]'); await pg.wait_for_timeout(200)
             tit = await pg.inner_text("#hoja-titulo"); await pg.fill("#f-comercio", "Bizum a Juan"); await pg.click("#f-categorias label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
             g2 = [x for x in bd["gastos"] if x["id"] == "gb2"][0]

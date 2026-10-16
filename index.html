@@ -256,6 +256,13 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .tabs svg{display:block;width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tabs button[aria-current="page"]{color:var(--ink);font-weight:800}
 .tabs button[aria-current="page"] svg{stroke-width:2.3}
+.tabs div{position:relative}
+.tabs button{position:relative;z-index:1}
+/* la píldora que marca la pestaña activa y se desliza de una a otra */
+.tabs .pildora{position:absolute;z-index:0;left:0;top:4px;bottom:2px;width:0;border-radius:14px;background:var(--track);pointer-events:none;opacity:0}
+.tabs .pildora.lista{opacity:1}
+main{position:relative}
+.vista.sale{position:absolute;left:0;right:0;pointer-events:none}
 @media (min-width:430px){.tabs button{font-size:11px;letter-spacing:-.01em}}
 @media (max-width:350px){.tabs div{padding-inline:4px}.tabs button{min-width:0}}
 
@@ -399,12 +406,10 @@ dialog.candado::backdrop{background:var(--bg)}
   .interruptor,.interruptor i{transition:background .18s ease,transform .18s ease}
   .rosco .seg{transition:opacity .15s ease}
   dialog.hoja[open]{animation:sube .22s ease-out}
-  /* cambio de pestaña: la pantalla nueva entra desde el lado hacia el que vas, subiendo un poco */
-  .vista.entra-d{animation:entraD .34s cubic-bezier(.2,.8,.2,1)}
-  .vista.entra-i{animation:entraI .34s cubic-bezier(.2,.8,.2,1)}
-  @keyframes entraD{from{transform:translate3d(42px,10px,0);opacity:0}to{transform:none;opacity:1}}
-  @keyframes entraI{from{transform:translate3d(-42px,10px,0);opacity:0}to{transform:none;opacity:1}}
-  .vista.vuelve{transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .25s ease}
+  .vista.vuelve{transition:transform .3s cubic-bezier(.25,1.2,.5,1),opacity .25s ease}
+  .tabs .pildora.mueve{transition:transform .46s cubic-bezier(.3,1.3,.5,1),width .46s cubic-bezier(.3,1.3,.5,1),opacity .2s ease}
+  .tabs button[aria-current="page"] svg{animation:pop .42s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes pop{0%{transform:scale(.82)}60%{transform:scale(1.12)}100%{transform:none}}
   @keyframes sube{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
 }
 </style>
@@ -446,7 +451,7 @@ dialog.candado::backdrop{background:var(--bg)}
 
 <button class="fab" id="nuevo" type="button">+ Añadir gasto</button>
 <nav class="tabs" aria-label="Secciones">
-  <div>
+  <div><i class="pildora" aria-hidden="true"></i>
     <button type="button" data-tab="cuentas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></button>
     <button type="button" data-tab="resumen"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="4" height="9" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="16" y="8" width="4" height="12" rx="1"/></svg><span>Resumen</span></button>
     <button type="button" data-tab="movimientos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg><span>Movimientos</span></button>
@@ -1373,6 +1378,7 @@ dialog.candado::backdrop{background:var(--bg)}
       var b = document.querySelector('.tabs [data-tab="' + t + '"]');
       if (S.tab === t) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
+    pildora(S.tab, null, 0, !!document.querySelector('.tabs .pildora.lista'));
     $('#nuevo').hidden = S.sinDatos || S.tab === 'ahorro' || S.tab === 'patrimonio';   // ahí no se apuntan gastos y el botón taparía las gráficas
     pintarCuentas(); pintarResumen(D); pintarMovimientos(D); pintarPresupuestos(D); pintarAhorro(); pintarPatrimonio();
   }
@@ -1695,21 +1701,46 @@ dialog.candado::backdrop{background:var(--bg)}
   function pestanas() {
     return Array.prototype.filter.call(document.querySelectorAll('.tabs [data-tab]'), function (b) { return !b.hidden; }).map(function (b) { return b.dataset.tab; });
   }
+  var QUIETO = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  var MUELLE = 'cubic-bezier(.22,1,.36,1)';
+  // Coloca la píldora del menú sobre una pestaña; con «hacia» y «p» (0-1) la deja a medio camino de la vecina mientras deslizas.
+  function sitioPildora(tab) {
+    var b = document.querySelector('.tabs [data-tab="' + tab + '"]');
+    return b && !b.hidden ? { x: b.offsetLeft - 6, w: b.offsetWidth + 12 } : null;
+  }
+  function pildora(tab, hacia, p, animar) {
+    var el = document.querySelector('.tabs .pildora'), a = sitioPildora(tab), b = hacia ? sitioPildora(hacia) : null;
+    if (!el || !a) return;
+    var x = a.x, w = a.w;
+    if (b && p > 0) { x = a.x + (b.x - a.x) * p; w = a.w + (b.w - a.w) * p + Math.sin(Math.PI * p) * 18; }   // se estira un poco a mitad de camino
+    el.classList.toggle('mueve', !!animar && !QUIETO.matches);
+    el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,0,0)'; el.style.width = w.toFixed(1) + 'px';
+    el.classList.add('lista');
+  }
+  window.addEventListener('resize', function () { pildora(S.tab); });
   function irA(tab, dir) {
     var orden = pestanas(), antes = orden.indexOf(S.tab), luego = orden.indexOf(tab);
     if (!dir) dir = luego > antes ? 1 : luego < antes ? -1 : 0;
+    var vieja = $('#v-' + S.tab), arriba = vieja.getBoundingClientRect().top, desdeX = vieja.style.transform, desdeO = vieja.style.opacity;
     S.tab = tab; menu(false);
     pintar(); window.scrollTo(0, 0);
+    pildora(tab, null, 0, true);
     var v = $('#v-' + tab);
-    v.classList.remove('entra-d', 'entra-i', 'vuelve'); v.style.transform = ''; v.style.opacity = '';
-    if (dir) { void v.offsetWidth; v.classList.add(dir > 0 ? 'entra-d' : 'entra-i'); }
+    v.classList.remove('vuelve'); v.style.transform = ''; v.style.opacity = '';
+    if (!dir || vieja === v || QUIETO.matches || !v.animate) { vieja.style.transform = ''; vieja.style.opacity = ''; return; }
+    // La pantalla de antes se queda donde estaba y sale hacia el otro lado mientras entra la nueva.
+    var m = document.querySelector('main');
+    document.querySelectorAll('main .vista.sale').forEach(function (x) { x.classList.remove('sale'); x.hidden = x.id !== 'v-' + S.tab; x.style.top = ''; });
+    vieja.hidden = false; vieja.classList.add('sale'); vieja.style.top = (arriba - m.getBoundingClientRect().top) + 'px';
+    var sale = vieja.animate([{ transform: desdeX || 'none', opacity: desdeO || 1 }, { transform: 'translate3d(' + (-dir * 90) + 'px,0,0) scale(.97)', opacity: 0 }], { duration: 300, easing: MUELLE, fill: 'forwards' });
+    sale.onfinish = function () { sale.cancel(); vieja.classList.remove('sale'); vieja.style.top = ''; vieja.style.transform = ''; vieja.style.opacity = ''; vieja.hidden = vieja.id !== 'v-' + S.tab; };
+    v.animate([{ transform: 'translate3d(' + (dir * 90) + 'px,8px,0) scale(.98)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, easing: MUELLE });
   }
-  document.querySelector('main').addEventListener('animationend', function (e) { e.target.classList.remove('entra-d', 'entra-i'); });
 
   /* Deslizar a izquierda o derecha cambia de pestaña; la pantalla sigue al dedo mientras deslizas. */
   (function () {
     var x0 = null, y0 = 0, t0 = 0, dx = 0, lado = false, v = null;
-    var quieto = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+    var quieto = QUIETO;
     function vecina(paso) { var o = pestanas(), i = o.indexOf(S.tab) + paso; return i >= 0 && i < o.length ? o[i] : null; }
     document.addEventListener('touchstart', function (e) {
       x0 = null; lado = false; dx = 0;
@@ -1732,6 +1763,8 @@ dialog.candado::backdrop{background:var(--bg)}
       var tope = vecina(dx < 0 ? 1 : -1) ? 0.45 : 0.15;   // en la primera y la última, se resiste
       v.style.transform = 'translate3d(' + (dx * tope).toFixed(1) + 'px,0,0)';
       v.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx) / 600));
+      var otra = vecina(dx < 0 ? 1 : -1);
+      if (otra) pildora(S.tab, otra, Math.min(1, Math.abs(dx) / 220), false);   // la píldora del menú sigue al dedo
     }, { passive: true });
     function fin() {
       if (x0 === null) return;
@@ -1741,6 +1774,7 @@ dialog.candado::backdrop{background:var(--bg)}
       var destino = (Math.abs(dx) > 70 || rapido) ? vecina(dx < 0 ? 1 : -1) : null;
       if (destino) { irA(destino, dx < 0 ? 1 : -1); return; }
       v.classList.add('vuelve'); v.style.transform = ''; v.style.opacity = '';
+      pildora(S.tab, null, 0, true);
     }
     document.addEventListener('touchend', fin, { passive: true });
     document.addEventListener('touchcancel', fin, { passive: true });
@@ -1955,7 +1989,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-16.1709';
+  var VERSION = '2026-10-16.1715';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
