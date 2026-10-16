@@ -20,7 +20,7 @@ const TIPOS = ['gasto', 'ingreso', 'traspaso'];
 const H_PRESUPUESTOS = ['ID', 'Nombre', 'Límite', 'Orden'];
 // Termina en: las 4 últimas cifras de la cuenta, para saber a cuál se refiere cada aviso del banco.
 const H_CUENTAS = ['ID', 'Nombre', 'Saldo', 'Fecha saldo', 'Tarjetas', 'Orden', 'Termina en', 'Rol', 'Objetivo', 'Aportado', 'Fecha aportado'];
-const ROLES = ['gasto', 'ahorro', 'inversion', 'conjunta'];   // para qué es cada cuenta
+const ROLES = ['gasto', 'ahorro', 'inversion', 'conjunta', 'afe'];   // para qué es cada cuenta
 // Una fila por día con el saldo de cada cuenta: de aquí sale la gráfica de evolución.
 const H_SALDOS = ['Día', 'Total', 'Cuentas'];
 const SALDOS_MAX = 800;   // días que se devuelven a la app

@@ -694,7 +694,7 @@ dialog.candado::backdrop{background:var(--bg)}
   function tipoDe(g) { return g.tipo === 'ingreso' || g.tipo === 'traspaso' ? g.tipo : 'gasto'; }
   function sinIdentificar(g) { return g.origen === 'Banco' && g.comercio === 'Sin identificar'; }
   /* Para qué es cada cuenta. De aquí sale qué cuenta como gasto, como ahorro o como inversión. */
-  var ROLES = [['gasto', 'Gasto diario'], ['ahorro', 'Ahorro'], ['inversion', 'Inversión'], ['conjunta', 'Conjunta']];
+  var ROLES = [['gasto', 'Gasto diario'], ['ahorro', 'Ahorro'], ['inversion', 'Inversión'], ['conjunta', 'Conjunta'], ['afe', 'Título AFE']];
   var CAT_CONJUNTA = 'Cuenta conjunta';
   function cuentaPorId(id) { return id ? (S.cuentas.find(function (c) { return c.id === id; }) || null) : null; }
   function rolDe(id) { var c = cuentaPorId(id); return c ? (c.rol || '') : ''; }
@@ -1109,8 +1109,8 @@ dialog.candado::backdrop{background:var(--bg)}
     if (S.sinDatos) { el.innerHTML = SIN_DATOS; return; }
     if (!S.listoC || !S.listoG) { el.innerHTML = vistaCargando('Cargando tus cuentas…'); return; }
     if (el.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;
-    // Inicio es el dinero del día a día: las cuentas de inversión se ven en Patrimonio.
-    var todas = cuentasOrdenadas(), cuentas = todas.filter(function (c) { return c.rol !== 'inversion'; }), total = 0, sinSaldo = 0, h = '';
+    // Inicio es el dinero del día a día: las cuentas de inversión y el título AFE se ven en Patrimonio.
+    var todas = cuentasOrdenadas(), cuentas = todas.filter(function (c) { return c.rol !== 'inversion' && c.rol !== 'afe'; }), total = 0, sinSaldo = 0, h = '';
     var filas = cuentas.map(function (c) { var s = saldoDe(c); if (tieneSaldo(c)) total += s.saldo; else sinSaldo++; return { c: c, s: s }; });
     if (!todas.length) {
       h += '<div class="vacio"><strong>Aún no hay cuentas</strong>Añade cada cuenta con su saldo de hoy y sus tarjetas. Desde ese momento, cada pago se resta de su cuenta.</div>' +
@@ -1302,7 +1302,7 @@ dialog.candado::backdrop{background:var(--bg)}
   }
 
   /* ---------- pestaña Patrimonio: todo lo que tienes, hoy ---------- */
-  var GRUPOS = [['gasto', 'Día a día', 'var(--s5)'], ['conjunta', 'Cuenta conjunta', 'var(--s6)'], ['ahorro', 'Ahorro', 'var(--s1)'], ['inversion', 'Inversión', 'var(--s2)']];
+  var GRUPOS = [['gasto', 'Día a día', 'var(--s5)'], ['conjunta', 'Cuenta conjunta', 'var(--s6)'], ['ahorro', 'Ahorro', 'var(--s1)'], ['inversion', 'Inversión', 'var(--s2)'], ['afe', 'Título AFE', 'var(--s3)']];
   function pintarPatrimonio() {
     var el = $('#v-patrimonio');
     if (S.sinDatos) { el.innerHTML = ''; return; }
@@ -1327,17 +1327,17 @@ dialog.candado::backdrop{background:var(--bg)}
     }).join('') + '</div></div>';
     if (sinSaldo) h += '<p class="nota">' + (sinSaldo === 1 ? 'Falta el saldo de 1 cuenta; no entra en el total.' : 'Falta el saldo de ' + sinSaldo + ' cuentas; no entran en el total.') + '</p>';
 
-    var deInv = filas.filter(function (f) { return f.c.rol === 'inversion'; }), resto = filas.filter(function (f) { return f.c.rol !== 'inversion'; });
+    var deInv = filas.filter(function (f) { return f.c.rol === 'inversion'; }), deAfe = filas.filter(function (f) { return f.c.rol === 'afe'; }), resto = filas.filter(function (f) { return f.c.rol !== 'inversion' && f.c.rol !== 'afe'; });
+    var filaC = function (f) {
+      return '<button class="fila-c" type="button" data-cuenta="' + esc(f.c.id) + '">' + logo(f.c) + '<span class="txt"><span class="nombre">' + esc(f.c.nombre) + '</span><small>' + esc(f.g.nombre) + '</small></span>' +
+        (f.ok ? '<span class="saldo' + (f.s < 0 ? ' neg' : '') + '">' + esc(eur(f.s)) + '</span>' : '<span class="pill none">Sin saldo</span>') + '</button>';
+    };
     if (deInv.length) {
       var anio = claveMes(new Date()).slice(0, 4);
       h += '<section class="sec"><header><h2>Inversiones</h2></header><div class="objs">' + deInv.map(function (f) { return tarjetaInversion(f.c, anio, true); }).join('') + '</div></section>';
     }
-    if (resto.length) {
-      h += '<section class="sec"><header><h2>Cuentas</h2></header><div class="lista">' + resto.map(function (f) {
-        return '<button class="fila-c" type="button" data-cuenta="' + esc(f.c.id) + '">' + logo(f.c) + '<span class="txt"><span class="nombre">' + esc(f.c.nombre) + '</span><small>' + esc(f.g.nombre) + '</small></span>' +
-          (f.ok ? '<span class="saldo' + (f.s < 0 ? ' neg' : '') + '">' + esc(eur(f.s)) + '</span>' : '<span class="pill none">Sin saldo</span>') + '</button>';
-      }).join('') + '</div></section>';
-    }
+    if (deAfe.length) h += '<section class="sec"><header><h2>Título AFE</h2></header><div class="lista">' + deAfe.map(filaC).join('') + '</div></section>';
+    if (resto.length) h += '<section class="sec"><header><h2>Cuentas</h2></header><div class="lista">' + resto.map(filaC).join('') + '</div></section>';
     h += '<section class="sec"><header><h2>Evolución</h2><span class="nota">Todo lo que tienes</span></header>';
     h += e ? '<div class="graf">' + e.svg + '</div><div class="pie"><span>Desde el ' + esc(e.desde) + ': ' + esc(conSigno(e.cambio)) + '</span><span>Una foto del saldo cada día</span></div>'
       : '<div class="vacio"><strong>Empieza a dibujarse mañana</strong>La app guarda el saldo de cada día; con dos días ya hay línea.</div>';
@@ -1899,7 +1899,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-14.2148';
+  var VERSION = '2026-10-16.1650';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
