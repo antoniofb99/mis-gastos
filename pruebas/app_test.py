@@ -6,6 +6,9 @@ K = "clave-de-prueba"
 TIRAR = """(() => { const t = (tipo, y) => { const p = new Touch({ identifier: 1, target: document.body, clientX: 200, clientY: y });
     document.body.dispatchEvent(new TouchEvent(tipo, { touches: tipo === 'touchend' ? [] : [p], changedTouches: [p], bubbles: true })); };
     t('touchstart', 150); t('touchmove', 190); t('touchmove', 300); t('touchend', 300); })()"""   # tirar hacia abajo desde arriba: actualiza
+DESLIZA = """((dx, dy) => { const el = document.querySelector('main .vista:not([hidden])'); const t = (tipo, x, y) => { const p = new Touch({ identifier: 2, target: el, clientX: x, clientY: y });
+    el.dispatchEvent(new TouchEvent(tipo, { touches: tipo === 'touchend' ? [] : [p], changedTouches: [p], bubbles: true })); };
+    t('touchstart', 200, 400); t('touchmove', 200 + dx / 3, 400 + dy / 3); t('touchmove', 200 + dx, 400 + dy); t('touchend', 200 + dx, 400 + dy); })"""   # deslizar de lado
 bd = {"gastos": [{"id": "g1", "fecha": "2026-10-09T16:59:40", "comercio": "PRUEBA Mercadona", "importe": 12.5, "tarjeta": "Tarjeta de prueba", "categoria": "Supermercado", "origen": "Prueba", "cuenta": ""}],
       "presupuestos": [{"id": "supermercado", "nombre": "Supermercado", "limite": 350, "orden": 1}, {"id": "restaurantes", "nombre": "Restaurantes", "limite": 150, "orden": 2}],
       "cuentas": [{"id": "banco-santander", "nombre": "Banco Santander", "saldo": 144.01, "fechaSaldo": "2026-10-09T18:02:22", "tarjetas": ["Santander"], "orden": 1},
@@ -87,7 +90,15 @@ async def main():
             await pg.click('[data-tab="resumen"]'); despues = await pg.inner_text("#v-resumen .rosco .cifra"); lineas = await pg.inner_text("#v-resumen .lineas")
             num = lambda x: float(x.replace("\u00a0€", "").replace(".", "").replace(",", "."))
             ok(abs(num(despues) - num(antes) - 2.01) < 0.001 and "Ingresos del mes" in lineas and "+1,00" in lineas, "el gasto sin identificar cuenta en el mes y el ingreso no (%s -> %s)" % (antes, despues))
-            await pg.click('[data-tab="cuentas"]'); await pg.click('[data-gasto="gb2"]'); await pg.wait_for_timeout(200)
+            await pg.click('[data-tab="cuentas"]'); await pg.wait_for_timeout(400)
+            vis = lambda: pg.evaluate("document.querySelector('main .vista:not([hidden])').id")
+            await pg.evaluate(DESLIZA + "(-120, 6)"); await pg.wait_for_timeout(50); d1 = [await vis(), await pg.evaluate("document.querySelector('#v-resumen').className")]
+            await pg.wait_for_timeout(450); await pg.evaluate(DESLIZA + "(130, 0)"); await pg.wait_for_timeout(450); d2 = await vis()
+            await pg.evaluate(DESLIZA + "(140, 0)"); await pg.wait_for_timeout(450); d3 = await vis()
+            await pg.evaluate(DESLIZA + "(-30, 0)"); await pg.wait_for_timeout(450); d4 = await vis()
+            await pg.evaluate(DESLIZA + "(-60, -150)"); await pg.wait_for_timeout(450); d5 = [await vis(), await pg.evaluate("document.querySelector('#v-cuentas').style.transform")]
+            ok(d1 == ["v-resumen", "vista entra-d"] and d2 == "v-cuentas" and d3 == "v-cuentas" and d4 == "v-cuentas" and d5 == ["v-cuentas", ""], "deslizar de lado cambia de pestaña con transición; corto, vertical o antes de la primera, no (%s %s %s %s %s)" % (d1, d2, d3, d4, d5))
+            await pg.click('[data-gasto="gb2"]'); await pg.wait_for_timeout(200)
             tit = await pg.inner_text("#hoja-titulo"); await pg.fill("#f-comercio", "Bizum a Juan"); await pg.click("#f-categorias label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
             g2 = [x for x in bd["gastos"] if x["id"] == "gb2"][0]
             ok("Qué fue" in tit and g2["comercio"] == "Bizum a Juan" and g2["categoria"] == "Restaurantes" and g2["tipo"] == "gasto" and g2["origen"] == "Banco" and g2["cuenta"] == "banco-santander" and g2["fecha"] == t2, "identificar un gasto: guarda nombre y categoría sin tocar lo demás")

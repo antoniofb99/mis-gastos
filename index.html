@@ -19,7 +19,7 @@
 <style>
 /* Base: lo que antes ponía el visor de Claude */
 html{padding-top:env(safe-area-inset-top,0px);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
-body{margin:0}
+body{margin:0;overflow-x:clip}
 /* El cuerpo llena siempre la pantalla. */
 html{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;background:var(--bg);
   --sab:calc(env(safe-area-inset-bottom,0px) * .4)}   /* bajo el menú, menos de la mitad del margen que reserva el iPhone: entero quedaba un hueco grande bajo los iconos */
@@ -399,6 +399,12 @@ dialog.candado::backdrop{background:var(--bg)}
   .interruptor,.interruptor i{transition:background .18s ease,transform .18s ease}
   .rosco .seg{transition:opacity .15s ease}
   dialog.hoja[open]{animation:sube .22s ease-out}
+  /* cambio de pestaña: la pantalla nueva entra desde el lado hacia el que vas, subiendo un poco */
+  .vista.entra-d{animation:entraD .34s cubic-bezier(.2,.8,.2,1)}
+  .vista.entra-i{animation:entraI .34s cubic-bezier(.2,.8,.2,1)}
+  @keyframes entraD{from{transform:translate3d(42px,10px,0);opacity:0}to{transform:none;opacity:1}}
+  @keyframes entraI{from{transform:translate3d(-42px,10px,0);opacity:0}to{transform:none;opacity:1}}
+  .vista.vuelve{transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .25s ease}
   @keyframes sube{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
 }
 </style>
@@ -1685,10 +1691,60 @@ dialog.candado::backdrop{background:var(--bg)}
     S.mes = m;
     pintar();
   }
-  function irA(tab) {
+  // Pestañas en el orden del menú, solo las que se ven.
+  function pestanas() {
+    return Array.prototype.filter.call(document.querySelectorAll('.tabs [data-tab]'), function (b) { return !b.hidden; }).map(function (b) { return b.dataset.tab; });
+  }
+  function irA(tab, dir) {
+    var orden = pestanas(), antes = orden.indexOf(S.tab), luego = orden.indexOf(tab);
+    if (!dir) dir = luego > antes ? 1 : luego < antes ? -1 : 0;
     S.tab = tab; menu(false);
     pintar(); window.scrollTo(0, 0);
+    var v = $('#v-' + tab);
+    v.classList.remove('entra-d', 'entra-i', 'vuelve'); v.style.transform = ''; v.style.opacity = '';
+    if (dir) { void v.offsetWidth; v.classList.add(dir > 0 ? 'entra-d' : 'entra-i'); }
   }
+  document.querySelector('main').addEventListener('animationend', function (e) { e.target.classList.remove('entra-d', 'entra-i'); });
+
+  /* Deslizar a izquierda o derecha cambia de pestaña; la pantalla sigue al dedo mientras deslizas. */
+  (function () {
+    var x0 = null, y0 = 0, t0 = 0, dx = 0, lado = false, v = null;
+    var quieto = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+    function vecina(paso) { var o = pestanas(), i = o.indexOf(S.tab) + paso; return i >= 0 && i < o.length ? o[i] : null; }
+    document.addEventListener('touchstart', function (e) {
+      x0 = null; lado = false; dx = 0;
+      if (e.touches.length !== 1 || S.sinDatos) return;
+      if (document.querySelector('dialog[open]') || !$('#entrada').hidden || !$('#menu').hidden) return;
+      var t = e.target;
+      if (!t.closest || !t.closest('main') || t.closest('.filtros, input, select, textarea, [data-sin-desliz]')) return;
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); v = $('#v-' + S.tab);
+    }, { passive: true });
+    document.addEventListener('touchmove', function (e) {
+      if (x0 === null) return;
+      var mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+      if (!lado) {
+        if (Math.abs(mx) < 12 && Math.abs(my) < 12) return;
+        if (Math.abs(mx) < Math.abs(my) * 1.4) { x0 = null; return; }   // es un scroll vertical
+        lado = true; v.classList.remove('vuelve', 'entra-d', 'entra-i');
+      }
+      dx = mx;
+      if (quieto.matches) return;
+      var tope = vecina(dx < 0 ? 1 : -1) ? 0.45 : 0.15;   // en la primera y la última, se resiste
+      v.style.transform = 'translate3d(' + (dx * tope).toFixed(1) + 'px,0,0)';
+      v.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx) / 600));
+    }, { passive: true });
+    function fin() {
+      if (x0 === null) return;
+      x0 = null;
+      if (!lado) return;
+      var rapido = Math.abs(dx) > 30 && Math.abs(dx) / Math.max(1, Date.now() - t0) > 0.5;
+      var destino = (Math.abs(dx) > 70 || rapido) ? vecina(dx < 0 ? 1 : -1) : null;
+      if (destino) { irA(destino, dx < 0 ? 1 : -1); return; }
+      v.classList.add('vuelve'); v.style.transform = ''; v.style.opacity = '';
+    }
+    document.addEventListener('touchend', fin, { passive: true });
+    document.addEventListener('touchcancel', fin, { passive: true });
+  })();
 
   /* ---------- eventos ---------- */
   $('#mes-ant').addEventListener('click', function () { cambiarMes(moverMes(S.mes, -1)); });
@@ -1899,7 +1955,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-16.1650';
+  var VERSION = '2026-10-16.1709';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo
