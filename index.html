@@ -19,7 +19,8 @@
 <style>
 /* Base: lo que antes ponía el visor de Claude */
 html{padding-top:env(safe-area-inset-top,0px);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
-body{margin:0;overflow-x:clip}
+html,body{overflow-x:clip}
+body{margin:0}
 /* El cuerpo llena siempre la pantalla. */
 html{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;background:var(--bg);
   --sab:calc(env(safe-area-inset-bottom,0px) * .4)}   /* bajo el menú, menos de la mitad del margen que reserva el iPhone: entero quedaba un hueco grande bajo los iconos */
@@ -709,7 +710,44 @@ dialog.candado::backdrop{background:var(--bg)}
   var CAT_CONJUNTA = 'Cuenta conjunta';
   function cuentaPorId(id) { return id ? (S.cuentas.find(function (c) { return c.id === id; }) || null) : null; }
   function rolDe(id) { var c = cuentaPorId(id); return c ? (c.rol || '') : ''; }
-  function mesDe(g) { return g.mes || String(g.fecha).slice(0, 7); }
+  /* Mes de nómina: cada mes empieza el día que entra la primera nómina y acaba la víspera de la siguiente.
+     Se llama como el mes que se vive con esa nómina: la que entra el 30 de octubre abre «noviembre».
+     Una nómina es un ingreso cuyo concepto dice «nómina». Si llegan dos (o más) en pocos días, manda la primera.
+     Antes de la primera nómina apuntada, los meses son naturales; si una nómina aún no ha llegado,
+     el mes se alarga hasta que llegue (y mientras tanto se cuenta con el mismo día que la anterior). */
+  var CICLO = null;
+  function sinTildes(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+  function esNomina(g) { return tipoDe(g) === 'ingreso' && /nomina/.test(sinTildes(g.comercio)); }
+  function sumaDias(dia, n) { var p = dia.split('-').map(Number); return claveDia(new Date(p[0], p[1] - 1, p[2] + n)); }
+  function entreDias(a, b) { var x = a.split('-').map(Number), y = b.split('-').map(Number); return Math.round((Date.UTC(y[0], y[1] - 1, y[2]) - Date.UTC(x[0], x[1] - 1, x[2])) / 864e5); }
+  function ciclos() {
+    if (CICLO) return CICLO;
+    var dias = S.todos.filter(esNomina).map(function (g) { return String(g.fecha).slice(0, 10); }).sort(), inicios = {}, lista = [], ultimo = null;
+    dias.forEach(function (d) {
+      if (ultimo && entreDias(ultimo, d) < 15) return;   // la segunda nómina del mismo mes no abre otro
+      ultimo = d; var m = sumaDias(d, 15).slice(0, 7);
+      if (!inicios[m]) { inicios[m] = d; lista.push({ mes: m, dia: d }); }
+    });
+    CICLO = { inicios: inicios, lista: lista };
+    return CICLO;
+  }
+  function inicioMes(m) {
+    var c = ciclos(); if (c.inicios[m]) return c.inicios[m];
+    var ant = null; c.lista.forEach(function (x) { if (x.mes < m) ant = x; });
+    if (!ant) return m + '-01';
+    var base = ant.dia.slice(0, 7) < ant.mes ? moverMes(m, -1) : m;   // si la última nómina llegó el mes anterior al suyo, esta también
+    return base + '-' + dos(Math.min(Number(ant.dia.slice(8, 10)), diasMes(base)));
+  }
+  function finMes(m) { return sumaDias(inicioMes(moverMes(m, 1)), -1); }
+  function mesDeDia(dia) {
+    var m = dia.slice(0, 7);
+    if (dia >= inicioMes(moverMes(m, 1))) return moverMes(m, 1);
+    if (dia < inicioMes(m)) return moverMes(m, -1);
+    return m;
+  }
+  function mesHoy() { return mesDeDia(claveDia(new Date())); }
+  function mesNatural(m) { return inicioMes(m) === m + '-01' && finMes(m) === m + '-' + dos(diasMes(m)); }
+  function mesDe(g) { return mesDeDia(String(g.fecha).slice(0, 10)); }
   /* Categoría con la que un movimiento cuenta como gasto tuyo, o null si no cuenta.
      Con una cuenta conjunta, tu gasto es lo que le aportas; lo que se paga desde ella ya no se cuenta otra vez. */
   function gastoDe(g) {
@@ -802,10 +840,11 @@ dialog.candado::backdrop{background:var(--bg)}
 
   /* Por dónde va el mes: fracción transcurrida y día de hoy. */
   function ritmo(m) {
-    var ahora = new Date(), act = claveMes(ahora), n = diasMes(m);
+    var act = mesHoy(), ini = inicioMes(m), n = entreDias(ini, finMes(m)) + 1;
     if (m < act) return { dia: n, frac: 1, estado: 'pasado', n: n };
     if (m > act) return { dia: 0, frac: 0, estado: 'futuro', n: n };
-    return { dia: ahora.getDate(), frac: ahora.getDate() / n, estado: 'actual', n: n };
+    var dia = Math.min(n, entreDias(ini, claveDia(new Date())) + 1);
+    return { dia: dia, frac: dia / n, estado: 'actual', n: n };
   }
   function estadoDe(gastado, limite, r) {
     if (!(limite > 0)) return { k: 'none', txt: 'Sin límite' };
@@ -1174,7 +1213,7 @@ dialog.candado::backdrop{background:var(--bg)}
   function primerMes() { return S.todos.reduce(function (a, g) { var m = mesDe(g); return !a || m < a ? m : a; }, ''); }
   /* Lo que entra de media al mes en una cuenta: los tres meses anteriores con datos o, si no hay, el actual. */
   function ritmoCuenta(id) {
-    var hoy = claveMes(new Date()), desde = primerMes(), lista = [];
+    var hoy = mesHoy(), desde = primerMes(), lista = [];
     for (var i = 1; i <= 3; i++) { var m = moverMes(hoy, -i); if (desde && m >= desde) lista.push(m); }
     if (!lista.length) lista = [hoy];
     return lista.reduce(function (a, m) { return a + (flujoMes(m).porCuenta[id] || 0); }, 0) / lista.length;
@@ -1287,7 +1326,7 @@ dialog.candado::backdrop{background:var(--bg)}
         h += '<button class="obj" type="button" data-cuenta="' + esc(c.id) + '"><span class="fila"><span class="nombre">' + esc(c.nombre) + '</span><span class="cifra">' + (ok ? esc(eur(s)) : 'Sin saldo') + '</span></span>';
         if (ob > 0 && ok) {
           var falta = ob - s, ri = ritmoCuenta(c.id), cuando = '';
-          if (falta > 0 && ri > 0) { var n = Math.ceil(falta / ri); if (n <= 240) cuando = 'A este ritmo: ' + nombreMes(moverMes(claveMes(new Date()), n)); }
+          if (falta > 0 && ri > 0) { var n = Math.ceil(falta / ri); if (n <= 240) cuando = 'A este ritmo: ' + nombreMes(moverMes(mesHoy(), n)); }
           h += '<span class="bar grande meta" role="img" aria-label="' + Math.round(s / ob * 100) + ' % del objetivo"><i style="--w:' + Math.max(0, Math.min(100, s / ob * 100)).toFixed(1) + '%"></i></span>' +
             '<span class="pie"><span><strong>' + Math.max(0, Math.round(s / ob * 100)) + ' %</strong> de ' + esc(eur0(ob)) + '</span><span>' + esc(falta <= 0 ? 'Objetivo cumplido' : cuando || 'Faltan ' + eur0(falta)) + '</span></span>';
         } else h += '<span class="pie"><span>Sin objetivo</span><span class="accion">Poner objetivo</span></span>';
@@ -1357,17 +1396,19 @@ dialog.candado::backdrop{background:var(--bg)}
   }
 
   function pintar() {
-    S.movs = S.todos.filter(function (g) { return (g.mes || String(g.fecha).slice(0, 7)) === S.mes; });
+    CICLO = null;
+    if (S.mesAuto !== false) S.mes = mesHoy();   // mientras no elijas otro, el mes en curso (el de tu última nómina)
+    S.movs = S.todos.filter(function (g) { return mesDe(g) === S.mes; });
     S.gastos = S.movs.filter(function (g) { return tipoDe(g) === 'gasto'; });
     var D = calcular();
     var conAhorro = DB.moderno();   // hasta que el script de la hoja se actualiza, estas pestañas no se enseñan
     if (!conAhorro && (S.tab === 'ahorro' || S.tab === 'patrimonio')) S.tab = 'cuentas';
     var enCuentas = S.tab === 'cuentas' || S.tab === 'patrimonio';   // el saldo es de hoy: ahí el mes no pinta nada
     $('#mes-txt').textContent = S.tab === 'cuentas' ? 'Hola, Antonio' : S.tab === 'patrimonio' ? 'Patrimonio' : mayus(soloMes(S.mes));   // el año va en la línea pequeña: con cinco botones no cabe al lado
-    $('#mes-sub').textContent = enCuentas ? 'Mis gastos' : 'Mis gastos · ' + S.mes.slice(0, 4);
+    $('#mes-sub').textContent = enCuentas ? 'Mis gastos' : mesNatural(S.mes) ? 'Mis gastos · ' + S.mes.slice(0, 4) : 'Nómina · ' + diaCorto(inicioMes(S.mes)) + ' – ' + diaCorto(finMes(S.mes));   // con mes de nómina, de qué día a qué día va
     $('#mes-sub').hidden = S.tab === 'cuentas';   // en Inicio, solo el saludo
     $('#mes-ant').hidden = enCuentas; $('#mes-sig').hidden = enCuentas;
-    $('#mes-hoy').hidden = enCuentas || S.mes === claveMes(new Date());
+    $('#mes-hoy').hidden = enCuentas || S.mes === mesHoy();
     $('#aviso-ejemplo').hidden = !S.gastos.some(function (g) { return g.ejemplo; });
     $('#aviso-error').hidden = !S.error;
     $('#aviso-error-txt').textContent = S.error;
@@ -1470,7 +1511,7 @@ dialog.candado::backdrop{background:var(--bg)}
     var hora = previo && String(previo.fecha).slice(0, 10) === fecha ? String(previo.fecha).slice(11) : dos(ahora.getHours()) + ':' + dos(ahora.getMinutes()) + ':' + dos(ahora.getSeconds());
     var cta = document.querySelector('#f-cuentas input:checked');
     var datos = {
-      fecha: fecha + 'T' + (hora || '12:00:00'), mes: fecha.slice(0, 7),
+      fecha: fecha + 'T' + (hora || '12:00:00'),
       cuenta: cta ? cta.value : (previo ? (previo.cuenta || '') : ''),
       comercio: comercio || porDefecto, importe: importe, categoria: tipo === 'gasto' ? marcada.value : '',
       tipo: tipo, destino: previo ? (previo.destino || '') : '',
@@ -1694,7 +1735,7 @@ dialog.candado::backdrop{background:var(--bg)}
   }
   function cambiarMes(m) {
     if (m === S.mes) return;
-    S.mes = m;
+    S.mes = m; S.mesAuto = m === mesHoy();
     pintar();
   }
   // Pestañas en el orden del menú, solo las que se ven.
@@ -1783,7 +1824,7 @@ dialog.candado::backdrop{background:var(--bg)}
   /* ---------- eventos ---------- */
   $('#mes-ant').addEventListener('click', function () { cambiarMes(moverMes(S.mes, -1)); });
   $('#mes-sig').addEventListener('click', function () { cambiarMes(moverMes(S.mes, 1)); });
-  $('#mes-hoy').addEventListener('click', function () { cambiarMes(claveMes(new Date())); });
+  $('#mes-hoy').addEventListener('click', function () { cambiarMes(mesHoy()); });
   $('#nuevo').addEventListener('click', function () { abrirHoja(null); });
   /* Detecta cuándo iOS da a la app instalada menos alto que la pantalla, para que la página mida la pantalla entera. */
   function medirHueco() {
@@ -1989,7 +2030,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-16.1715';
+  var VERSION = '2026-10-16.1750';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo

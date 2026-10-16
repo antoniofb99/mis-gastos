@@ -178,7 +178,7 @@ async def main():
             await pg.reload(); await pg.wait_for_timeout(500); f4 = [await filtro(".cuenta .saldo"), await pg.get_attribute("#ojo", "aria-pressed")]
             await pg.click("#ojo"); f5 = [await filtro(".cuenta .saldo"), await pg.get_attribute("#ojo", "aria-pressed"), await pg.evaluate("localStorage.getItem('mg-oculto')")]
             ok(logos == ["banco-santander:img", "tarjeta-comida:img"] and f0 == ["none", "none", "false"] and f1 == ["blur(7px)", "blur(7px)", "none", "true", "Mostrar los saldos"] and f2 == "blur(7px)" and f3 == ["blur(7px)", 0]
-               and f4 == ["blur(7px)", "true"] and f5 == ["none", "false", "0"] and tit[0] == 1 and tit[1] == "mis gastos · " + datetime.now().strftime("%Y") and " " not in tit[2], "ojo: difumina saldos e importes (no los nombres), se recuerda al recargar y se quita con otro toque (%s | %s | %s)" % (f1, f4, f5))
+               and f4 == ["blur(7px)", "true"] and f5 == ["none", "false", "0"] and tit[0] == 1 and tit[1] == "mis gastos · " + datetime.now().strftime("%Y") and " " not in tit[2], "ojo: difumina saldos e importes (no los nombres), se recuerda al recargar y se quita con otro toque (%s | %s | %s | %s %s %s)" % (f1, f4, f5, f2, f3, tit))
             # --- bloqueo con Face ID ---
             cara = lambda v: cdp.send("WebAuthn.setUserVerified", {"authenticatorId": aut, "isUserVerified": v})
             cerrado = lambda: pg.evaluate("document.querySelector('#candado').hasAttribute('open')")
