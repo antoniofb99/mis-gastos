@@ -299,4 +299,21 @@ ok(t.operaciones.nuevas === 3 && t.operaciones.aplicadas === 2 && t.fondos[0].pa
 gmailRoto = true; t = post({ clave: 'k', accion: 'leer' }); gmailRoto = false;
 ok(t.ok && t.operaciones.ok === false && t.fondos.length === 2, 'operaciones: si falla Gmail, la app sigue funcionando');
 Date.now = realNow;
+
+// ---------------------------------------------------------------- pago repetido en menos de un minuto
+const filasGastos = () => post({ clave: 'k', accion: 'leer' }).gastos.filter(q => q.comercio === 'Cafe Bar Miguelito');
+let r1 = post({ clave: 'k', comercio: 'Cafe Bar Miguelito', importe: '122,70 €', tarjeta: 'Ticket Restaurant' });
+let r2 = post({ clave: 'k', comercio: 'cafe bar miguelito ', importe: '122,70 €', tarjeta: 'Trade Republic Visa Card' });
+let mig = filasGastos();
+ok(r1.ok && !r1.repetido && r2.repetido && r2.id === r1.id && mig.length === 1 && mig[0].tarjeta === 'Trade Republic Visa Card', 'repetido: el mismo pago en menos de un minuto deja solo el último');
+post({ clave: 'k', comercio: 'Cafe Bar Miguelito', importe: '3,10 €', tarjeta: 'Trade Republic Visa Card' });
+ok(filasGastos().length === 2, 'repetido: otro importe es otro pago');
+const filaMig = hojas.Gastos.f.findIndex(f => f[7] === r1.id);
+hojas.Gastos.f[filaMig][0] = new Date(Date.now() - 2 * 60 * 1000);
+post({ clave: 'k', comercio: 'Cafe Bar Miguelito', importe: '122,70 €', tarjeta: 'Trade Republic Visa Card' });
+ok(filasGastos().length === 3, 'repetido: pasado un minuto, es un pago nuevo');
+const idUltimo = filasGastos().slice(-1)[0].id, filaU = hojas.Gastos.f.findIndex(f => f[7] === idUltimo);
+hojas.Gastos.f[filaU][8] = 'banco-santander';
+post({ clave: 'k', comercio: 'Cafe Bar Miguelito', importe: '122,70 €', tarjeta: 'Trade Republic Visa Card' });
+ok(filasGastos().length === 4, 'repetido: no toca un pago que ya has asignado a mano a una cuenta');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

@@ -133,8 +133,18 @@ function apuntarPago(datos) {
   if (!comercio && !(importe > 0)) {
     return { ok: true, prueba: true, mensaje: 'Conexión correcta. No se ha apuntado nada porque no venía ni comercio ni importe.' };
   }
+  const h = hoja('Gastos', H_GASTOS);
+  // Mismo comercio e importe en menos de un minuto: es el mismo pago repetido (p. ej. una tarjeta
+  // rechazada y luego otra). Se queda el último: en esa fila se ponen la fecha y la tarjeta nuevas.
+  const repetida = pagoRepetido(h, comercio, importe, new Date());
+  if (repetida) {
+    h.getRange(repetida.fila, 1).setValue(new Date());
+    h.getRange(repetida.fila, 4).setValue(texto(String(datos.tarjeta || '').trim()));
+    return { ok: true, id: repetida.id, comercio: comercio, importe: importe, repetido: true,
+      mensaje: 'Pago repetido en menos de un minuto: se ha quedado solo el último.' };
+  }
   const id = nuevoId();
-  hoja('Gastos', H_GASTOS).appendRow([
+  h.appendRow([
     new Date(),
     texto(comercio),
     importe,
@@ -148,6 +158,28 @@ function apuntarPago(datos) {
     '',
   ]);
   return { ok: true, id: id, comercio: comercio, importe: importe };
+}
+
+const REPETIDO_MS = 60 * 1000;
+// Busca entre las últimas filas un pago de Apple Pay igual (comercio e importe) de hace menos de un minuto.
+// Solo cuentan los que siguen como llegaron: sin cuenta puesta a mano y de tipo gasto.
+function pagoRepetido(h, comercio, importe, ahora) {
+  const ultima = h.getLastRow();
+  if (ultima < 2 || !(importe > 0)) return null;
+  const desde = Math.max(2, ultima - 19);
+  const filas = h.getRange(desde, 1, ultima - desde + 1, H_GASTOS.length).getValues();
+  const igual = function (a) { return String(a || '').trim().toLowerCase() === comercio.toLowerCase(); };
+  for (let i = filas.length - 1; i >= 0; i--) {
+    const f = filas[i];
+    if (!(f[0] instanceof Date)) continue;
+    const dif = ahora.getTime() - f[0].getTime();
+    if (dif < 0 || dif > REPETIDO_MS) continue;
+    const imp = typeof f[2] === 'number' ? f[2] : leerImporte(f[2]);
+    if (!igual(f[1]) || Math.abs(imp - importe) > 0.004) continue;
+    if (String(f[8] || '') || tipoValido(f[9]) !== 'gasto' || String(f[5] || '') === 'A mano') continue;
+    return { fila: desde + i, id: String(f[7] || '') };
+  }
+  return null;
 }
 
 function leerGastos() {
