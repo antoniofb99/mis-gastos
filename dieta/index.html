@@ -87,6 +87,15 @@ h1{margin:0;font-family:var(--font-num);font-size:30px;font-weight:800;letter-sp
 .fila .q{flex:0 1 auto;color:var(--muted);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
 .fila .chev{flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .2s}
 .plato.abierto .chev{transform:rotate(45deg)}
+.con-ing{padding-bottom:12px}
+.con-ing .fila{padding-bottom:6px;min-height:0}
+.ing{list-style:none;margin:0;padding:0 14px;display:flex;flex-direction:column}
+.ing li{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:14px;border-top:1px dashed var(--rule)}
+.ing li:first-child{border-top:0}
+.ing .cant{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;flex:0 1 auto}
+.ver{margin:8px 14px 0;font-size:13px;font-weight:600;color:var(--muted);padding:4px 0}
+.receta{margin:6px 0 0;padding:0 14px 0 34px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.receta li::marker{color:var(--muted)}
 .det{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;font-size:14px}
 .det h4{margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
 .det ul,.det ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
@@ -226,15 +235,15 @@ function pintar(){
     var tomas=TOMAS.filter(function(t){return (d[t[0]]||[]).length;}).map(function(t){
       var cls='toma'+(PRINCIPALES[t[0]]?' principal':'')+(ahora===t[0]?' ahora':'');
       var platos=d[t[0]].map(function(p,j){
-        var tiene=p.i||p.r, id='p'+i+t[0]+j;
-        var fila=tiene
-          ? '<button class="fila" aria-expanded="false" aria-controls="'+id+'"><span class="n">'+esc(p.n)+'</span><span class="chev" aria-hidden="true"></span></button>'
-          : '<div class="fila"><span class="n">'+esc(p.n)+'</span><span class="q">'+esc(p.q||'')+'</span></div>';
-        var det=tiene?'<div class="det" id="'+id+'" hidden>'+
-          (p.i?'<div><h4>Ingredientes</h4><ul>'+p.i.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>':'')+
-          (p.r?'<div><h4>Preparación</h4><ol>'+p.r.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol></div>':'')+
-          '</div>':'';
-        return '<div class="plato">'+fila+det+'</div>';
+        var id='p'+i+t[0]+j;
+        if(!p.i) return '<div class="plato"><div class="fila"><span class="n">'+esc(p.n)+'</span><span class="q">'+esc(p.q||'')+'</span></div></div>';
+        var ing='<ul class="ing">'+p.i.map(function(x){
+          var k=x.indexOf(': ');
+          return k<0?'<li><span>'+esc(x)+'</span></li>':'<li><span>'+esc(x.slice(0,k))+'</span><span class="cant">'+esc(x.slice(k+2))+'</span></li>';
+        }).join('')+'</ul>';
+        var rec=p.r?'<button class="ver" aria-expanded="false" aria-controls="'+id+'">Ver receta</button>'+
+          '<ol class="receta" id="'+id+'" hidden>'+p.r.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol>':'';
+        return '<div class="plato con-ing"><div class="fila"><span class="n">'+esc(p.n)+'</span></div>'+ing+rec+'</div>';
       }).join('');
       return '<section class="'+cls+'"><div class="toma-h"><h3>'+t[1]+'</h3><span class="hora">'+t[2]+'</span>'+(ahora===t[0]?'<span class="ahora-t">· Ahora</span>':'')+'</div><div class="grupo">'+platos+'</div></section>';
     }).join('');
@@ -263,11 +272,11 @@ car.addEventListener('scroll',function(){
   if(i!==actual){ marcar(Math.max(0,Math.min(6,i))); clearTimeout(t); t=setTimeout(function(){ if(window.scrollY>0) window.scrollTo({top:0}); },150); }
 },{passive:true});
 car.addEventListener('click',function(e){
-  var b=e.target.closest('button.fila'); if(!b) return;
+  var b=e.target.closest('button.ver'); if(!b) return;
   var det=document.getElementById(b.getAttribute('aria-controls'));
   var abre=det.hidden; det.hidden=!abre;
   b.setAttribute('aria-expanded',abre?'true':'false');
-  b.parentNode.classList.toggle('abierto',abre);
+  b.textContent=abre?'Ocultar receta':'Ver receta';
 });
 window.addEventListener('resize',function(){ ir(actual<0?HOY:actual,false); });
 // Al volver a la app otro día, abrir en el día nuevo.
