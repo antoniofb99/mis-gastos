@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mi Dieta</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Dieta">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111113" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-md-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-md-192.png">
+<style>
+/* Layout: una columna de móvil, igual que Mis Gastos. Arriba la semana (L M X J V S D);
+   debajo un carrusel con un día por pantalla que se desliza a izquierda y derecha. */
+:root{
+  --bg:#F2F2F4; --paper:#FFFFFF; --ink:#111113; --muted:#6C6C72; --rule:#DEDEE2; --track:#E6E6EA;
+  --accent:#111113; --on-accent:#FFFFFF; --barra:#111113;
+  --now:#1F7A55; --now-bg:#DFF3E8;
+  --m1:#64a3e3; --m2:#d8875d; --m3:#62caa0;
+  --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  --font-num:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#000000; --paper:#1C1C1E; --ink:#F2F2F4; --muted:#9A9AA0; --rule:#38383C; --track:#2C2C2E;
+    --accent:#F2F2F4; --on-accent:#111113; --barra:#000000;
+    --now:#7FD4AE; --now-bg:#1B3A2E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#000000; --paper:#1C1C1E; --ink:#F2F2F4; --muted:#9A9AA0; --rule:#38383C; --track:#2C2C2E;
+  --accent:#F2F2F4; --on-accent:#111113; --barra:#000000;
+  --now:#7FD4AE; --now-bg:#1B3A2E;
+  color-scheme:dark;
+}
+html{padding-top:env(safe-area-inset-top,0px);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;background:var(--bg);overflow-x:clip}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.4;overflow-x:clip}
+body::before{content:"";position:fixed;z-index:9;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--barra)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.app{max-width:540px;margin:0 auto}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);
+  padding:14px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1{margin:0;font-family:var(--font-num);font-size:30px;font-weight:800;letter-spacing:-.02em}
+.fecha{color:var(--muted);font-size:14px}
+.semana{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px}
+.semana button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 6px;border-radius:12px;color:var(--muted)}
+.semana .l{font-size:12px;font-weight:600;letter-spacing:.04em}
+.semana .d{width:6px;height:6px;border-radius:50%;background:transparent}
+.semana button.hoy .d{background:var(--now)}
+.semana button[aria-current="true"]{background:var(--accent);color:var(--on-accent)}
+.semana button[aria-current="true"].hoy .d{background:var(--on-accent)}
+
+.carrusel{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;align-items:flex-start}
+.carrusel::-webkit-scrollbar{display:none}
+.dia{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always;
+  padding:4px max(16px,env(safe-area-inset-right,0px)) calc(32px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:18px}
+.dia-t{display:flex;align-items:center;gap:10px;margin:6px 2px 0}
+.dia-t h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.pill{font-size:12px;font-weight:700;color:var(--now);background:var(--now-bg);padding:3px 9px;border-radius:999px}
+
+.toma{display:flex;flex-direction:column;gap:6px}
+.toma-h{display:flex;align-items:baseline;gap:8px;margin:0 4px}
+.toma-h h3{margin:0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.toma-h .hora{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+.toma.principal .toma-h h3{color:var(--ink)}
+.toma.ahora .toma-h h3{color:var(--now)}
+.toma.ahora .toma-h .ahora-t{font-size:12px;font-weight:700;color:var(--now)}
+.grupo{background:var(--paper);border-radius:14px;overflow:hidden}
+.toma.ahora .grupo{box-shadow:inset 0 0 0 1.5px var(--now)}
+.plato{border-top:1px solid var(--rule)}
+.plato:first-child{border-top:0}
+.fila{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;min-height:46px}
+.fila .n{flex:1;min-width:0;font-weight:500}
+.toma.principal .fila .n{font-weight:600}
+.fila .q{flex:0 1 auto;color:var(--muted);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.fila .chev{flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);transition:transform .2s}
+.plato.abierto .chev{transform:rotate(45deg)}
+.det{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.det h4{margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.det ul,.det ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
+.det ol li::marker{color:var(--muted);font-variant-numeric:tabular-nums}
+.vacio{color:var(--muted);font-size:14px;padding:12px 14px}
+@media (prefers-reduced-motion: reduce){.carrusel{scroll-behavior:auto}.fila .chev{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="head"><h1>Mi Dieta</h1><span class="fecha" id="fecha"></span></div>
+    <nav class="semana" id="semana" aria-label="Días de la semana"></nav>
+  </header>
+  <main class="carrusel" id="carrusel"></main>
+</div>
+<script>
+// Plan de Pepelu Vidal (13/10/2026). Es el mismo todas las semanas del mes.
+var CAFE={n:'Café (infusión)',q:'125 g · 1 vaso pequeño'};
+var MANT={n:'Mantequilla con sal',q:'15 g · 1 cda. de postre'};
+var OM={n:'Omega 3',q:'1 g'}, MG={n:'Pure Magnesio',q:'2 g'};
+var CRE={n:'Creatina monohidrato',q:'10 g'}, AGUA={n:'Agua Monte Pinos',q:'330 ml · 1 botella'}, ISO={n:'Iso Protein',q:'30 g'};
+var CAS={n:'Micellar Casein',q:'20 g'};
+var HJ={n:'Huevo a la plancha con jamón serrano',
+  i:['Huevo: 120 g (2 unidades talla M)','Aceite de oliva: 8 g (1 cucharada de postre)','Jamón serrano: 90 g'],
+  r:['Calentar una sartén antiadherente con el aceite. Añadir el huevo y tapar la sartén para que se haga con su propio vapor.','Cocinar hasta que esté cuajado por arriba y crujiente por abajo.','Pasar brevemente el jamón por la plancha.','Emplatar el huevo con el jamón.']};
+var KEF_CAC={n:'Kéfir y cacahuetes',i:['Kéfir: 100 g (1 unidad pequeña)','Cacahuete sin cáscara: 15 g (15 unidades)']};
+var KEF_AR={n:'Kéfir con arándanos',i:['Kéfir: 200 g (2 unidades pequeñas)','Arándanos: 100 g (40 unidades)']};
+var KEF_ANA={n:'Kéfir y anacardos',i:['Kéfir: 100 g (1 unidad pequeña)','Anacardo sin cáscara: 10 g (10 unidades)']};
+
+var TOMAS=[['des','Desayuno','09:00'],['ten','Tentempié','11:30'],['com','Comida','14:00'],['m1','Merienda 1','17:00'],['m2','Merienda 2','19:00'],['cen','Cena','21:30'],['rec','Recena','22:15']];
+var PRINCIPALES={des:1,com:1,cen:1};
+
+var DIAS=[
+ {d:'Lunes',l:'L',
+  des:[CAFE,MANT], ten:[HJ],
+  com:[{n:'Patatas al horno',i:['Patata: 240 g (1 unidad mediana)','Aceite de oliva: 10 g (1 cucharada sopera)'],
+        r:['Precalentar el horno a 180 ºC.','Lavar las patatas, partirlas por la mitad y hacer unos cortes en la pulpa para que se asen mejor.','Ponerlas en una bandeja y echar el aceite por encima. Se pueden aderezar con hierbas o especias al gusto.','Hornear 25-35 minutos, hasta que estén tiernas.']},
+       {n:'Filete de ternera a la plancha con espárragos verdes',i:['Carne magra de ternera: 250 g (2 filetes)','Espárragos: 150 g (10 espárragos)','Aceite de oliva: 10 g (1 cucharada sopera)'],
+        r:['Asar el filete a la plancha.','Lavar los espárragos y asarlos enteros.','Emplatar el filete con los espárragos de guarnición.']},OM],
+  m1:[AGUA,CRE,ISO],
+  m2:[{n:'Kéfir y nueces',i:['Kéfir: 100 g (1 unidad pequeña)','Nuez pelada: 10 g (2 nueces)']},{n:'Plátano',q:'130 g · 1 pequeño'}],
+  cen:[{n:'Hamburguesa de pavo en salsa de queso a las finas hierbas',i:['Hamburguesa de pavo: 150 g (1 y 1/2 unidades)','Cebolla blanca: 45 g','Leche evaporada: 75 g','Crema de queso finas hierbas: 30 g (1 cucharada sopera)','Aceite de oliva: 8 g (1 cucharada de postre)'],
+        r:['Cortar la cebolla en dados pequeños y pocharla con el aceite. Cuando empiece a dorarse, añadir la leche evaporada poco a poco sin dejar de remover.','Añadir el queso crema y remover hasta que se integre en la salsa.','Asar la hamburguesa en la plancha caliente, emplatar y cubrir con la salsa.']},OM,MG],
+  rec:[KEF_CAC,CAS]},
+ {d:'Martes',l:'M',
+  des:[CAFE,MANT], ten:[],
+  com:[{n:'Ensalada de zanahoria, pepino y maíz',i:['Zanahoria: 80 g (1 mediana)','Pepino: 100 g (1 pequeño)','Maíz dulce de lata: 50 g (1/2 lata pequeña)','Aceite de oliva: 8 g (1 cucharada de postre)'],
+        r:['Pelar y trocear en dados parecidos la zanahoria y el pepino.','Emplatar, añadir el maíz escurrido y aliñar con aceite en crudo.']},
+       {n:'Pollo al pimentón en salsa cremosa de tomate',i:['Pechuga de pollo: 200 g','Tomate: 180 g (1 mediano)','Cebolla blanca: 70 g (1 pequeña)','Ajo: 3 g (1/2 diente)','Pimentón: 0,5 g','Yogur griego: 50 g','Aceite de oliva: 8 g (1 cucharada de postre)'],
+        r:['Picar fino el ajo y la cebolla. Cortar en dados gruesos el tomate y la pechuga.','En una cazuela ligeramente engrasada, dorar el pollo por todos los lados. Sacar y reservar.','Con el resto del aceite, pochar la cebolla y el ajo. Añadir el pollo y el pimentón y remover unos segundos sin que se queme.','Añadir el tomate y un chorro de agua, llevar a ebullición y tapar hasta que la salsa espese un poco.','Apartar del fuego y añadir una cucharada generosa de yogur griego. Remover hasta que la salsa quede densa.']},OM],
+  m1:[CRE,AGUA,ISO],
+  m2:[KEF_ANA,{n:'Piña natural',q:'260 g · 3 rodajas finas'}],
+  cen:[{n:'Merluza a la plancha con ensalada de espinacas, aceitunas y nueces',i:['Filete de merluza: 300 g (2 y 1/2 filetes)','Espinacas: 125 g (1 plato mediano)','Nuez pelada: 25 g (5 nueces)','Aceituna verde: 30 g (10 unidades)','Aceite de oliva: 10 g (1 cucharada sopera)'],
+        r:['Asar la merluza, limpia de espinas, en la plancha caliente.','Poner las espinacas en la base, añadir las nueces picadas y las aceitunas y aliñar con aceite.','Servir la merluza encima o al lado.']},OM,MG],
+  rec:[KEF_AR,CAS]},
+ {d:'Miércoles',l:'X',
+  des:[CAFE,MANT], ten:[HJ],
+  com:[{n:'Espaguetis integrales con boloñesa de calabacín y atún',i:['Espaguetis integrales: 60 g','Calabacín: 30 g (3 rodajas)','Cebolla o cebolleta: 50 g (1/3 de cebolleta)','Tomate triturado natural: 60 g','Atún al natural: 55 g (1 lata pequeña redonda)','Aceite de oliva: 5 g (1 cucharada de postre)'],
+        r:['Cocer los espaguetis 10 minutos en abundante agua con sal. Escurrir y reservar.','Pochar la cebolla y el calabacín troceados. Cuando la cebolla empiece a dorarse, añadir el tomate y rehogar hasta que se evapore el agua.','Añadir el atún escurrido y desmenuzado y cocinar 10 minutos más.','Mezclar la pasta con la salsa. Aderezar con especias o hierbas al gusto.']},
+       {n:'Atún en lata al natural',q:'85 g · 1 lata grande ovalada'},OM],
+  m1:[CRE,AGUA,ISO],
+  m2:[KEF_ANA,{n:'Plátano',q:'125 g · 1 pequeño'}],
+  cen:[{n:'Pavo a la plancha con mozzarella, tomate y alcaparras',i:['Pechuga de pavo: 225 g (1 filete grande)','Mozzarella fresca light: 60 g (1/2 bola)','Tomate cherry: 75 g (8-10 unidades)','Aceituna negra: 20 g (10 unidades)','Alcaparras: 8 g','Aceite de oliva: 10 g (1 cucharada sopera)','Vinagre de Módena: 8 g','Orégano y pimienta negra al gusto'],
+        r:['Cortar los cherry por la mitad y laminar las aceitunas. Mezclar en un cuenco el aceite, el vinagre, el orégano y la pimienta; añadir tomates, aceitunas y alcaparras y reservar.','Dorar la pechuga en la sartén por ambos lados. Poner encima la mozzarella en láminas finas y tapar 1 minuto para que se funda.','Emplatar y repartir la cobertura de tomate por encima.']},OM,MG],
+  rec:[KEF_CAC,CAS]},
+ {d:'Jueves',l:'J',
+  des:[CAFE,MANT],
+  ten:[{n:'Huevos revueltos con aguacate y arándanos',i:['Huevo: 180 g (3 unidades talla M)','Aguacate: 200 g (1 pieza)','Arándanos: 60 g (30 unidades)','Aceite de oliva: 8 g (1 cucharada de postre)'],
+        r:['Pelar y laminar el aguacate.','Cuajar el huevo batido en una sartén caliente sin dejar de remover.','Emplatar el revuelto con el aguacate y los arándanos por encima.']}],
+  com:[{n:'Quinoa con verduras y pollo al curry',i:['Quinoa: 60 g','Pechuga de pollo: 100 g','Calabacín: 100 g (1 pequeño)','Cebolla o cebolleta: 50 g (1/3 de cebolleta)','Champiñones: 100 g (5 medianos)','Curry: 1 g','Aceite de oliva: 5 g (1 cucharada de postre)'],
+        r:['Lavar la quinoa en un colador medio minuto. Cocerla 15 minutos con el doble de agua, apagar y dejar reposar.','Dorar el pollo vuelta y vuelta, trocear y reservar.','Pochar la cebolla y el calabacín en dados pequeños. Cuando la cebolla empiece a dorarse, añadir el champiñón laminado y saltear.','Añadir la quinoa, el pollo y el curry y mezclar bien.']},
+       {n:'Pechuga de pollo',q:'130 g · 1 filete'},OM],
+  m1:[CRE,AGUA,ISO],
+  m2:[{n:'Kéfir y pistachos',i:['Kéfir: 100 g (1 unidad pequeña)','Pistachos: 15 g (1 puñado pequeño)']},{n:'Manzana roja',q:'150 g · 1 pequeña'}],
+  cen:[{n:'Hamburguesa de ternera con ensalada de aguacate y tomate',i:['Hamburguesa de ternera (100 % carne): 200 g','Aguacate: 100 g (1/2 pieza)','Tomate: 180 g (1 mediano)','Aceite de oliva: 8 g (1 cucharada de postre)'],
+        r:['Asar la hamburguesa a la plancha.','Cortar el aguacate y el tomate en dados, mezclar y aliñar con aceite.','Servir la hamburguesa con la ensalada.']},OM,MG],
+  rec:[KEF_AR,CAS]},
+ {d:'Viernes',l:'V',
+  des:[CAFE,MANT], ten:[HJ],
+  com:[{n:'Tallarines salteados con pimientos y ternera',i:['Cintas de pasta: 60 g','Carne magra de ternera: 100 g (1/2 filete)','Pimiento rojo: 125 g','Cebolla o cebolleta: 60 g (1/3 de cebolleta)','Salsa de soja: 10 g','Aceite de oliva: 5 g (1 cucharada de postre)'],
+        r:['Cortar el pimiento y la cebolla en juliana fina y saltear con el aceite a fuego suave 10 minutos.','Mientras, cocer la pasta.','Cortar la ternera en tiras y añadirla a las verduras. Salpimentar y rehogar un par de minutos.','Añadir la pasta escurrida y la salsa de soja y mezclar.','Servir caliente.']},
+       {n:'Filete de ternera',q:'125 g · 1 filete'},OM],
+  m1:[CRE,AGUA,ISO],
+  m2:[KEF_ANA,{n:'Mango',q:'160 g · 1/2 pequeño'}],
+  cen:[{n:'Tacos de maíz con pollo, lechuga y pico de gallo',i:['Pechuga de pollo: 150 g','Tortillas de maíz: 80 g (4 unidades)','Tomate: 200 g (1 y 1/2 mediano)','Cebolla blanca: 100 g (1 pequeña)','Pimiento rojo: 150 g (1/2 grande)','Lechuga: 30 g (2 hojas grandes)','Lima: 75 g','Ajo: 8 g (2 dientes)','Aceite de oliva: 10 g (1 cucharada sopera)','Cilantro, comino, sal y pimienta blanca al gusto'],
+        r:['Trocear en dados pequeños el pimiento y la cebolla y picar fino el ajo.','Calentar el aceite, añadir el ajo y el comino 1 minuto. Añadir parte del pimiento y la cebolla y pochar hasta que se doren un poco.','Añadir el pollo picado, la sal y la pimienta y cocinar 10 minutos.','Para el pico de gallo, mezclar el resto del pimiento y la cebolla con el tomate en dados. Sazonar con cilantro, zumo de lima, sal y pimienta.','Montar cada tortilla con lechuga y el pollo encima. Acompañar con el pico de gallo.']},OM,MG],
+  rec:[]},
+ {d:'Sábado',l:'S',
+  des:[CAFE],
+  ten:[{n:'Huevos',q:'195 g · 3 talla M'},{n:'Bacon',q:'40 g · 2 lonchas'},{n:'Arándanos',q:'100 g · 40 unidades'}],
+  com:[{n:'Ensalada caprese de mozzarella y tomate',i:['Tomate: 150 g (1 pequeño tipo raf)','Mozzarella fresca light: 60 g (1/2 bola)','Aceite de oliva: 5 g (1 cucharada de postre)','Orégano al gusto'],
+        r:['Cortar el tomate y la mozzarella en rodajas.','Poner el tomate de base y la mozzarella encima. Aliñar con aceite y orégano.']},
+       {n:'Pollo asado en su jugo',i:['Muslo y contramuslo de pollo: 340 g','Ajo: 15 g (3 dientes)','Aceite de oliva: 15 g','Vino de Jerez: 75 g','Laurel al gusto'],
+        r:['Poner el muslo sin piel en una fuente de horno con el aceite, el laurel y los ajos enteros, y regarlo con el vino.','Hornear a 190 ºC. A los 20 minutos darle la vuelta y regarlo con el jugo.','A los 20 minutos siguientes, darle otra vez la vuelta y asar 15 minutos más.','Servir y aliñar con el jugo del fondo de la fuente.']},OM],
+  m1:[CRE,AGUA],
+  m2:[{n:'Tortitas de plátano',i:['Plátano: 125 g (1 pequeño)','Huevo: 120 g (2 unidades talla M)','Levadura química: 4 g','Canela y sal: una pizca','Aceite de oliva: 3 g (1 cucharada de café)'],
+        r:['Triturar en la batidora el plátano, el huevo, la levadura, la canela y la sal hasta tener una crema.','Calentar una sartén apenas engrasada y echar unas tres cucharadas de crema por tortita.','Cocinar unos 2 minutos por cada lado.']}],
+  cen:[OM,MG],
+  rec:[]},
+ {d:'Domingo',l:'D',
+  des:[CAFE], ten:[],
+  com:[{n:'Dorada al horno con patata, cebolla y tomate',i:['Dorada: 370 g (3/4 de una de 540 g)','Patata: 100 g (1 pequeña)','Cebolleta: 100 g (1 unidad)','Tomate: 150 g (1 pequeño tipo raf)','Aceite de oliva: 10 g (1 cucharada sopera)'],
+        r:['Cortar en rodajas no muy gruesas la cebolla, la patata y el tomate.','Repartirlas en una placa de horno, sazonar, aliñar con aceite y hornear a 180 ºC 20 minutos.','Poner encima la dorada entera, limpia y sazonada. Regar con aceite y añadir un poco de agua al fondo.','Hornear 20 minutos más, rociando el pescado con su jugo.','Servir la dorada con las verduras.']},OM],
+  m1:[CRE,AGUA],
+  m2:[{n:'Yogur griego con almendras y mango',i:['Yogur griego: 125 g (1 unidad)','Almendras: 10 g (10 unidades)','Mango: 120 g'],
+        r:['Mezclar el yogur con el mango troceado y las almendras, o tomarlos por separado.']}],
+  cen:[{n:'Pizza fit de jamón cocido y champiñón',i:['Tortilla de trigo integral: 80 g (2 unidades)','Tomate triturado natural: 100 g','Mozzarella para gratinar: 60 g','Jamón cocido: 80 g','Champiñones: 100 g (5 medianos)','Orégano al gusto'],
+        r:['Usar la tortilla como base.','Extender el tomate, la mozzarella, el champiñón laminado y el jamón cocido.','Hornear a 180 ºC 5 minutos y añadir orégano.']},OM,MG],
+  rec:[]}
+];
+
+var MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function hoyIdx(){return (new Date().getDay()+6)%7;}
+function minutos(h){var p=h.split(':');return +p[0]*60+ +p[1];}
+
+// La toma "ahora" de hoy: la última cuya hora ya ha llegado (o la primera si aún es temprano).
+function tomaActual(dia){
+  var now=new Date(), m=now.getHours()*60+now.getMinutes(), act=null;
+  TOMAS.forEach(function(t){ if((dia[t[0]]||[]).length && minutos(t[2])<=m+30) act=t[0]; });
+  if(!act){ for(var k=0;k<TOMAS.length;k++){ if((dia[TOMAS[k][0]]||[]).length){act=TOMAS[k][0];break;} } }
+  return act;
+}
+
+var semana=document.getElementById('semana'), car=document.getElementById('carrusel');
+var HOY=hoyIdx(), actual=-1;
+
+function pintar(){
+  var f=new Date();
+  document.getElementById('fecha').textContent=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][f.getDay()]+' '+f.getDate()+' de '+MESES[f.getMonth()];
+  semana.innerHTML=DIAS.map(function(d,i){
+    return '<button id="b'+i+'" class="'+(i===HOY?'hoy':'')+'" aria-label="'+d.d+'" data-i="'+i+'"><span class="l">'+d.l+'</span><span class="d"></span></button>';
+  }).join('');
+  car.innerHTML=DIAS.map(function(d,i){
+    var ahora=i===HOY?tomaActual(d):null;
+    var tomas=TOMAS.filter(function(t){return (d[t[0]]||[]).length;}).map(function(t){
+      var cls='toma'+(PRINCIPALES[t[0]]?' principal':'')+(ahora===t[0]?' ahora':'');
+      var platos=d[t[0]].map(function(p,j){
+        var tiene=p.i||p.r, id='p'+i+t[0]+j;
+        var fila=tiene
+          ? '<button class="fila" aria-expanded="false" aria-controls="'+id+'"><span class="n">'+esc(p.n)+'</span><span class="chev" aria-hidden="true"></span></button>'
+          : '<div class="fila"><span class="n">'+esc(p.n)+'</span><span class="q">'+esc(p.q||'')+'</span></div>';
+        var det=tiene?'<div class="det" id="'+id+'" hidden>'+
+          (p.i?'<div><h4>Ingredientes</h4><ul>'+p.i.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>':'')+
+          (p.r?'<div><h4>Preparación</h4><ol>'+p.r.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol></div>':'')+
+          '</div>':'';
+        return '<div class="plato">'+fila+det+'</div>';
+      }).join('');
+      return '<section class="'+cls+'"><div class="toma-h"><h3>'+t[1]+'</h3><span class="hora">'+t[2]+'</span>'+(ahora===t[0]?'<span class="ahora-t">· Ahora</span>':'')+'</div><div class="grupo">'+platos+'</div></section>';
+    }).join('');
+    return '<article class="dia" id="d'+i+'" aria-label="'+d.d+'"><div class="dia-t"><h2>'+d.d+'</h2>'+(i===HOY?'<span class="pill">Hoy</span>':'')+'</div>'+tomas+'</article>';
+  }).join('');
+}
+
+function marcar(i){
+  if(i===actual) return;
+  actual=i;
+  for(var k=0;k<7;k++) document.getElementById('b'+k).setAttribute('aria-current',k===i?'true':'false');
+}
+function ir(i,suave){
+  car.scrollTo({left:i*car.clientWidth,behavior:suave?'smooth':'auto'});
+  if(i!==actual && window.scrollY>0) window.scrollTo({top:0});
+  marcar(i);
+}
+
+semana.addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b) return;
+  ir(+b.dataset.i,!matchMedia('(prefers-reduced-motion: reduce)').matches);
+});
+var t;
+car.addEventListener('scroll',function(){
+  var i=Math.round(car.scrollLeft/car.clientWidth);
+  if(i!==actual){ marcar(Math.max(0,Math.min(6,i))); clearTimeout(t); t=setTimeout(function(){ if(window.scrollY>0) window.scrollTo({top:0}); },150); }
+},{passive:true});
+car.addEventListener('click',function(e){
+  var b=e.target.closest('button.fila'); if(!b) return;
+  var det=document.getElementById(b.getAttribute('aria-controls'));
+  var abre=det.hidden; det.hidden=!abre;
+  b.setAttribute('aria-expanded',abre?'true':'false');
+  b.parentNode.classList.toggle('abierto',abre);
+});
+window.addEventListener('resize',function(){ ir(actual<0?HOY:actual,false); });
+// Al volver a la app otro día, abrir en el día nuevo.
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible' && hoyIdx()!==HOY){ HOY=hoyIdx(); actual=-1; pintar(); ir(HOY,false); }
+});
+
+pintar();
+requestAnimationFrame(function(){ ir(HOY,false); });
+</script>
+</body>
+</html>

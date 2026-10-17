@@ -15,3 +15,7 @@ Los datos no están en este repositorio: viven en una hoja de Google privada y s
 En `servidor/Codigo.gs` la clave es un marcador; la real solo está en el script desplegado.
 
 Mes de nómina: cada mes empieza el día que entra la primera nómina (un ingreso cuyo concepto dice «nómina») y acaba la víspera de la siguiente; se llama como el mes que se vive con ella. Antes de la primera nómina apuntada, los meses son naturales.
+
+## Mi Dieta (`dieta/`)
+
+App aparte con el plan semanal de Pepelu Vidal: un día por pantalla, deslizando a izquierda y derecha, y abre en el día de hoy. Se instala por separado desde `/mis-gastos/dieta/`.
