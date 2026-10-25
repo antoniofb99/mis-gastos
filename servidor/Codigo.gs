@@ -442,10 +442,15 @@ function ponerLecturas(h, vacias, fallidas, hoy) {
     }
     const url = FUENTE_PRECIO + isin + '-x?d=' + sello;
     const crudo = 'REGEXEXTRACT(' + celda + sep + '"""price"":""?([0-9.]+)")';
-    h.getRange(fila, 10).setFormula('=TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTXML("' + url + '"' + sep +
+    // De la página solo se guarda el trozo con el precio y el de la fecha: el bloque entero de Finect ya pasa
+    // de 50.000 caracteres y la celda daba «Resultado demasiado grande».
+    const pagina = 'TEXTJOIN(" "' + sep + 'TRUE' + sep + 'IMPORTXML("' + url + '"' + sep +
       '"//script[@type=\'application/ld+json\'][contains(.,\'offers\')] | ' +
       '//*[contains(.,\'Fecha de valor liquidativo\')][not(*[contains(.,\'Fecha de valor liquidativo\')])] | ' +
-      '//*[contains(text(),\'Datos a \')]"))');   // Finect pone la fecha de una forma u otra según la página   // sin paréntesis: la hoja no admite (…)[last()] dentro de una unión
+      '//*[contains(text(),\'Datos a \')]"))';   // Finect pone la fecha de una forma u otra según la página   // sin paréntesis: la hoja no admite (…)[last()] dentro de una unión
+    h.getRange(fila, 10).setFormula('=LET(t' + sep + pagina + sep + 'TEXTJOIN(" "' + sep + 'TRUE' + sep +
+      'IFERROR(REGEXEXTRACT(t' + sep + '"""price"":""?[0-9.]+"))' + sep +
+      'IFERROR(REGEXEXTRACT(t' + sep + '"(?:liquidativo:|Datos a)\\s*[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}"))))');
     h.getRange(fila, 8).setFormula(ingles ? '=VALUE(' + crudo + ')' : '=VALUE(SUBSTITUTE(' + crudo + sep + '"."' + sep + '","))');
     h.getRange(fila, 9).setFormula('=REGEXEXTRACT(' + celda + sep + '"(?:liquidativo:|Datos a)\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{4})")');
   }
