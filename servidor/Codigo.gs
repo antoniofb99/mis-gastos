@@ -68,13 +68,15 @@ const F_FECHA = "yyyy-MM-dd'T'HH:mm:ss";
 // esa categoría. Gana la primera coincidencia. Una palabra entre espacios (' dia ')
 // solo coincide como palabra suelta, así "Media Markt" no cuenta como supermercado DIA.
 const CATEGORIAS = [
-  ['Supermercado', ['mercadona', 'lidl', 'carrefour', 'aldi', ' dia ', 'alcampo', 'eroski', 'consum', 'supersol', 'coviran', 'masymas', ' mas ']],
-  ['Gasolina', ['repsol', 'cepsa', 'moeve', ' bp ', 'shell', 'galp', 'petroprix', 'plenoil', 'plenergy', 'ballenoil', 'gasolinera', 'e.s.']],
-  ['Restaurantes', ['restaurante', ' bar ', 'cafeteria', ' cafe ', 'burger', 'mcdonald', 'kfc', 'telepizza', 'domino', 'glovo', 'just eat', 'uber eats', 'cerveceria', 'meson', ' venta ']],
+  ['Suscripciones', ['claude', 'anthropic', 'whoop', 'icloud', 'apple.com']],
+  ['Supermercado', ['mercadona', 'lidl', 'carrefour', 'aldi', ' dia ', 'alcampo', 'eroski', 'consum', 'supersol', 'coviran', 'masymas', ' mas ', 'family cash', 'euro cash', 'eurocash']],
+  ['Gasolina', ['repsol', 'cepsa', 'moeve', ' bp ', 'shell', 'galp', 'petroprix', 'plenoil', 'plenergy', 'ballenoil', 'gasolinera', 'e.s.', 'eess', 'estacion de servicio']],
+  ['Restaurantes', ['restaurante', ' rest ', ' bar ', 'cafeteria', ' cafe ', 'cappuccino', 'burger', 'kebab', 'doner', 'pizz', 'taberna', 'helad', 'rodilla', 'mcdonald', 'kfc', 'telepizza', 'domino', 'glovo', 'just eat', 'uber eats', 'cerveceria', 'meson', ' venta ']],
+  ['Coche', ['seguro coche', 'mapfre', 'mutua madrilena', 'linea directa', ' itv', 'taller', 'neumatic', 'norauto', 'midas', 'feu vert']],
   ['Transporte', ['renfe', 'uber', 'cabify', 'bolt', 'taxi', 'parking', 'aparcamiento', 'peaje', 'autopista', 'alsa']],
-  ['Compras', ['amazon', 'zara', 'decathlon', 'el corte ingles', 'ikea', 'leroy', 'mediamarkt', 'media markt', 'primark', 'aliexpress']],
-  ['Salud', ['farmacia', 'clinica', 'fisio', 'dental', 'optica']],
-  ['Ocio', [' cine', 'cines', 'spotify', 'netflix', 'hbo', 'disney', 'steam', 'playstation', 'ticketmaster']],
+  ['Compras', ['amazon', 'zara', 'decathlon', 'el corte ingles', 'ikea', 'leroy', 'mediamarkt', 'media markt', 'primark', 'primor', 'joyeria', 'aliexpress']],
+  ['Salud', ['farmacia', 'clinica', 'fisio', 'dental', 'optica', 'nutricion']],
+  ['Ocio', [' cine', 'cines', 'spotify', 'netflix', 'hbo', 'disney', 'steam', 'playstation', 'ticketmaster', 'loter', 'discoteca']],
 ];
 const CATEGORIA_POR_DEFECTO = 'Otros';
 
@@ -214,7 +216,8 @@ function leerGastos() {
       comercio: String(f[1] || ''),
       importe: typeof f[2] === 'number' ? f[2] : (leerImporte(f[2]) || 0),
       tarjeta: String(f[3] || ''),
-      categoria: tipoValido(f[9]) !== 'gasto' ? '' : (!categoria || categoria === 'Sin categoría' ? CATEGORIA_POR_DEFECTO : categoria),
+      // Un ingreso con categoría es una devolución de ese gasto (p. ej. el Bizum de quien te debía su parte).
+      categoria: tipoValido(f[9]) === 'traspaso' ? '' : tipoValido(f[9]) === 'ingreso' ? categoria : (!categoria || categoria === 'Sin categoría' ? CATEGORIA_POR_DEFECTO : categoria),
       origen: String(f[5] || ''),
       cuenta: String(f[8] || ''),
       tipo: tipoValido(f[9]),
@@ -236,7 +239,7 @@ function guardarGasto(g) {
   }
   const importe = typeof g.importe === 'number' ? g.importe : leerImporte(g.importe);
   const tipo = tipoValido(g.tipo);
-  const categoria = tipo === 'gasto' ? (g.categoria || CATEGORIA_POR_DEFECTO) : '';
+  const categoria = tipo === 'gasto' ? (g.categoria || CATEGORIA_POR_DEFECTO) : tipo === 'ingreso' ? (g.categoria || '') : '';
   const valores = [fecha, texto(g.comercio), importe, texto(g.tarjeta), texto(categoria), texto(g.origen || 'A mano')];
   const cola = [texto(g.cuenta), tipo, tipo === 'traspaso' ? texto(g.destino) : ''];
   const fila = buscarFila(h, 8, id);

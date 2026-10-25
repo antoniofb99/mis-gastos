@@ -488,7 +488,7 @@ dialog.candado::backdrop{background:var(--bg)}
       <input class="texto" id="f-comercio" name="comercio" autocomplete="off" maxlength="80" placeholder="Por ejemplo, Mercadona">
     </div>
     <fieldset class="grupo" id="f-cat-grupo">
-      <legend>Categoría</legend>
+      <legend id="f-cat-leyenda">Categoría</legend>
       <div class="opciones" id="f-categorias"></div>
     </fieldset>
     <fieldset class="grupo" id="f-cuenta-grupo" hidden>
@@ -754,10 +754,15 @@ dialog.candado::backdrop{background:var(--bg)}
     var t = tipoDe(g);
     if (t === 'gasto') { var cu = cuentaDe(g); return cu && cu.rol === 'conjunta' ? null : (g.categoria || 'Otros'); }
     if (t === 'traspaso') return rolDe(g.destino) === 'conjunta' && rolDe(g.cuenta) !== 'conjunta' ? CAT_CONJUNTA : null;
-    return null;
+    return devolucionDe(g);   // un ingreso marcado como devolución resta de esa categoría
   }
+  /* Un ingreso con categoría es una devolución (p. ej. el Bizum de los amigos cuando pagaste tú la cuenta):
+     no es un ingreso tuyo, sino gasto que no era tuyo. */
+  function devolucionDe(g) { return tipoDe(g) === 'ingreso' && g.categoria ? g.categoria : null; }
+  /* Lo que un movimiento suma a tus gastos: positivo si es gasto, negativo si es una devolución. */
+  function importeGasto(g) { var imp = Number(g.importe) || 0; return gastoDe(g) === null ? 0 : devolucionDe(g) ? -imp : imp; }
   function esIngreso(g) {
-    if (tipoDe(g) !== 'ingreso') return false;
+    if (tipoDe(g) !== 'ingreso' || devolucionDe(g)) return false;
     var cu = cuentaDe(g); return !(cu && cu.rol === 'conjunta');
   }
   /* En un movimiento que avisó el banco: la cuenta del aviso y si el dinero salió o entró en ella. */
@@ -863,7 +868,7 @@ dialog.candado::backdrop{background:var(--bg)}
     var ingresos = movs.reduce(function (s, g) { return s + (esIngreso(g) ? Number(g.importe) || 0 : 0); }, 0);
     var porCat = {}, total = 0;
     gastos.forEach(function (g) {
-      var c = gastoDe(g), imp = Number(g.importe) || 0;
+      var c = gastoDe(g), imp = importeGasto(g);
       porCat[c] = (porCat[c] || 0) + imp; total += imp;
     });
     var pres = S.presupuestos.slice().sort(function (a, b) { return (a.orden || 0) - (b.orden || 0) || a.nombre.localeCompare(b.nombre); });
@@ -903,7 +908,7 @@ dialog.candado::backdrop{background:var(--bg)}
   function filaMov(g, conFecha) {
     var t = tipoDe(g), cu = cuentaDe(g), sub = [];
     if (t === 'gasto') sub.push(gastoDe(g) === null ? 'No cuenta en tus gastos' : (g.categoria || 'Otros'));
-    else if (t === 'ingreso') sub.push('Ingreso');
+    else if (t === 'ingreso') sub.push(devolucionDe(g) ? 'Devolución · ' + devolucionDe(g) : 'Ingreso');
     else sub.push(gastoDe(g) === CAT_CONJUNTA ? CAT_CONJUNTA : 'Entre cuentas');
     if (t === 'traspaso') {
       var a = S.cuentas.find(function (c) { return c.id === g.cuenta; }), b = S.cuentas.find(function (c) { return c.id === g.destino; });
@@ -1006,7 +1011,8 @@ dialog.candado::backdrop{background:var(--bg)}
 
     h += '<div class="datos"><div class="lineas">';
     h += linea('Presupuesto del mes', D.limiteTotal > 0 ? eur(D.limiteTotal) : 'Sin definir');
-    h += linea(D.gastos.length + (D.gastos.length === 1 ? ' gasto' : ' gastos'), eur(D.total));
+    var nG = D.gastos.filter(function (g) { return !devolucionDe(g); }).length, nD = D.gastos.length - nG;
+    h += linea(nG + (nG === 1 ? ' gasto' : ' gastos') + (nD ? ' (menos ' + nD + (nD === 1 ? ' devolución)' : ' devoluciones)') : ''), eur(D.total));
     if (D.ingresos > 0) h += linea('Ingresos del mes', '+' + eur(D.ingresos));
     if (D.limiteTotal > 0) {
       h += linea(queda >= 0 ? 'Te queda' : 'Te has pasado', eur(Math.abs(queda)), true);
@@ -1052,7 +1058,7 @@ dialog.candado::backdrop{background:var(--bg)}
     if (cats.indexOf(CAT_CONJUNTA) < 0 && D.gastos.some(function (g) { return gastoDe(g) === CAT_CONJUNTA; })) cats.push(CAT_CONJUNTA);
     if (S.filtro && cats.indexOf(S.filtro) < 0) S.filtro = '';
     var lista = S.filtro ? D.gastos.filter(function (g) { return gastoDe(g) === S.filtro; }) : D.movs;
-    var gastado = function (g) { return gastoDe(g) !== null ? Number(g.importe) || 0 : 0; };   // las sumas son de lo gastado
+    var gastado = importeGasto;   // las sumas son de lo gastado (una devolución resta)
     var suma = lista.reduce(function (s, g) { return s + gastado(g); }, 0);
     var h = '<section class="sec"><header><h2>Movimientos</h2><span class="num">' + esc(eur(suma)) + '</span></header>';
     h += '<div class="filtros" role="group" aria-label="Filtrar por categoría">' +
@@ -1465,10 +1471,12 @@ dialog.candado::backdrop{background:var(--bg)}
     var hoy = new Date();
     var porDefecto = S.mes === claveMes(hoy) ? claveDia(hoy) : S.mes + '-01';
     $('#f-fecha').value = g ? String(g.fecha).slice(0, 10) : porDefecto;
-    var sel = g ? (duda ? '' : (g.categoria || 'Otros')) : (S.filtro || '');
-    $('#f-categorias').innerHTML = nombresCategoria().map(function (c, i) {
-      return '<label><input type="radio" name="cat" id="f-cat-' + i + '" value="' + esc(c) + '"' + (c === sel ? ' checked' : '') + '><span>' + esc(c) + '</span></label>';
-    }).join('');
+    var sel = g ? (duda ? '' : tipo === 'ingreso' ? (g.categoria || '') : (g.categoria || 'Otros')) : (S.filtro || '');
+    // En un ingreso, la primera opción es «no es una devolución»; las demás dicen de qué gasto lo es.
+    $('#f-categorias').innerHTML = '<label data-solo-ingreso><input type="radio" name="cat" id="f-cat-no" value=""' + (tipo === 'ingreso' && !sel ? ' checked' : '') + '><span>No, es un ingreso</span></label>' +
+      nombresCategoria().map(function (c, i) {
+        return '<label><input type="radio" name="cat" id="f-cat-' + i + '" value="' + esc(c) + '"' + (c === sel ? ' checked' : '') + '><span>' + esc(c) + '</span></label>';
+      }).join('');
     var ctaSel = g ? (g.cuenta || '') : '';
     if (ctx.que && tipo === 'traspaso') ctaSel = ctx.casa;
     $('#f-cuentas').innerHTML = [{ id: '', nombre: g && g.tarjeta ? 'Según la tarjeta' : 'Ninguna' }].concat(cuentasOrdenadas()).map(function (c, i) {
@@ -1485,7 +1493,11 @@ dialog.candado::backdrop{background:var(--bg)}
     var traspasoElegido = ctx.que && $('#f-que-traspaso').checked;
     var tipo = !ctx.que ? ctx.tipo : traspasoElegido ? 'traspaso' : ctx.dir === 'sale' ? 'gasto' : 'ingreso';
     $('#f-otra-grupo').hidden = !traspasoElegido;
-    $('#f-cat-grupo').hidden = tipo !== 'gasto';
+    $('#f-cat-grupo').hidden = tipo === 'traspaso';
+    $('#f-cat-leyenda').textContent = tipo === 'ingreso' ? '¿Es una devolución de un gasto?' : 'Categoría';
+    var no = document.querySelector('#f-categorias [data-solo-ingreso]');
+    if (no) { no.hidden = tipo !== 'ingreso'; if (tipo !== 'ingreso' && no.querySelector('input').checked) no.querySelector('input').checked = false;
+      if (tipo === 'ingreso' && !document.querySelector('#f-categorias input:checked')) no.querySelector('input').checked = true; }
     $('#f-cuenta-grupo').hidden = !S.cuentas.length || traspasoElegido;
     if (ctx.que) $('#f-comercio').placeholder = traspasoElegido ? 'Opcional' : (ctx.dir === 'sale' ? 'Por ejemplo, Bizum a Juan' : 'Por ejemplo, Nómina');
     return tipo;
@@ -1503,7 +1515,7 @@ dialog.candado::backdrop{background:var(--bg)}
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { $('#f-error').textContent = 'Elige la fecha del gasto.'; return; }
     var previo = S.editando, ahora = new Date(), ctx = S.ctx || { que: false };
     var tipo = ctx.que ? ajustarQue() : previo ? tipoDe(previo) : 'gasto';
-    if (tipo === 'gasto' && !marcada) { $('#f-error').textContent = 'Elige una categoría.'; return; }
+    if (tipo === 'gasto' && !(marcada && marcada.value)) { $('#f-error').textContent = 'Elige una categoría.'; return; }
     var otra = ctx.que && tipo === 'traspaso' ? document.querySelector('#f-otras input:checked') : null;
     if (ctx.que && tipo === 'traspaso' && !otra) { $('#f-error').textContent = ctx.dir === 'sale' ? 'Elige a qué cuenta fue.' : 'Elige de qué cuenta vino.'; return; }
     var porDefecto = tipo === 'gasto' ? marcada.value : tipo === 'ingreso' ? 'Ingreso' : 'Traspaso';
@@ -1513,7 +1525,7 @@ dialog.candado::backdrop{background:var(--bg)}
     var datos = {
       fecha: fecha + 'T' + (hora || '12:00:00'),
       cuenta: cta ? cta.value : (previo ? (previo.cuenta || '') : ''),
-      comercio: comercio || porDefecto, importe: importe, categoria: tipo === 'gasto' ? marcada.value : '',
+      comercio: comercio || porDefecto, importe: importe, categoria: tipo === 'traspaso' ? '' : marcada ? marcada.value : '',
       tipo: tipo, destino: previo ? (previo.destino || '') : '',
       tarjeta: previo ? (previo.tarjeta || '') : '', origen: previo ? (previo.origen || 'A mano') : 'A mano'
     };
@@ -1524,7 +1536,8 @@ dialog.candado::backdrop{background:var(--bg)}
     if (previo && previo.ejemplo) datos.ejemplo = true;
     // Se cierra al momento y se envía a la hoja por detrás; si falla, se reabre con lo escrito.
     cerrarHoja();
-    if (datos.mes !== S.mes && !previo) S.mes = datos.mes;
+    var mesNuevo = mesDeDia(fecha);
+    if (mesNuevo !== S.mes && !previo) { S.mes = mesNuevo; S.mesAuto = mesNuevo === mesHoy(); }
     try {
       if (previo) await S.db.doc('gastos/' + previo.id).set(datos);
       else await S.db.collection('gastos').add(datos);
@@ -2030,7 +2043,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-16.1750';
+  var VERSION = '2026-10-25.2348';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo

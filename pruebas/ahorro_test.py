@@ -21,7 +21,7 @@ bd = {"cuentas": [cta("san", "Banco Santander", 1000, 1, tarjetas=["Santander"],
       "presupuestos": [{"id": "supermercado", "nombre": "Supermercado", "limite": 350, "orden": 1}, {"id": "restaurantes", "nombre": "Restaurantes", "limite": 150, "orden": 2}],
       "gastos": [mov("h1", M2 + "-05T09:00:00", "Traspaso a Trade Republic", 300, "traspaso", destino="tr"),
                  mov("h2", M1 + "-05T09:00:00", "Traspaso a Trade Republic", 300, "traspaso", destino="tr"),
-                 mov("h3", M1 + "-05T08:00:00", "Nómina", 2000, "ingreso"),
+                 mov("h3", M1 + "-05T08:00:00", "Sueldo", 2000, "ingreso"),
                  mov("h4", M1 + "-05T20:00:00", "Bizum a Juan", 50, cat="Restaurantes"),
                  mov("d1", HOY + "T00:30:00", "Sin identificar", 300, cat="Otros"),
                  mov("d2", HOY + "T00:31:00", "Sin identificar", 2000, "ingreso"),
@@ -59,7 +59,7 @@ async def main():
             await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(900)
             # --- lo que se repite se reconoce solo
             ok(g("d1")["tipo"] == "traspaso" and g("d1")["destino"] == "tr" and g("d1")["cuenta"] == "san" and g("d1")["comercio"] == "Traspaso a Trade Republic" and g("d1")["fecha"] == HOY + "T00:30:00", "aprende: una salida de 300 € como las de otros meses pasa a ser el traspaso de siempre")
-            ok(g("d2")["comercio"] == "Nómina" and g("d2")["tipo"] == "ingreso" and g("d2")["categoria"] == "", "aprende: el ingreso de 2.000 € se reconoce como la nómina")
+            ok(g("d2")["comercio"] == "Sueldo" and g("d2")["tipo"] == "ingreso" and g("d2")["categoria"] == "", "aprende: el ingreso de 2.000 € se reconoce como el sueldo (sin «nómina», los meses son naturales)")
             ok(g("d3")["comercio"] == "Sin identificar" and g("d4")["comercio"] == "Sin identificar", "aprende: un importe pequeño visto una sola vez, o uno nuevo, no se toca")
             # --- para qué es cada cuenta
             await pg.click('[data-tab="ahorro"]'); await pg.wait_for_timeout(150)
@@ -145,7 +145,7 @@ async def main():
             # --- corregir: un traspaso reconocido solo que en realidad era un gasto
             await pg.click('[data-tab="movimientos"]'); await pg.click('[data-gasto="d1"]'); await pg.wait_for_timeout(200)
             v = [await pg.is_checked("#f-que-traspaso"), await pg.is_checked('#f-otras input[value="tr"]')]
-            await pg.click("#f-que-grupo label:nth-child(1)"); await pg.fill("#f-comercio", "Dentista"); await pg.click("#f-categorias label:nth-child(1)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(300)
+            await pg.click("#f-que-grupo label:nth-child(1)"); await pg.fill("#f-comercio", "Dentista"); await pg.click("#f-categorias label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(300)
             ok(v == [True, True] and g("d1")["tipo"] == "gasto" and g("d1")["destino"] == "" and g("d1")["cuenta"] == "san" and g("d1")["comercio"] == "Dentista" and g("d1")["categoria"] == "Supermercado", "corregir: un traspaso se puede volver a marcar como gasto")
             # --- cambiar los papeles más tarde
             await pg.click('[data-tab="ahorro"]'); await pg.click('[data-papeles="1"]'); await pg.wait_for_timeout(100)

@@ -58,7 +58,7 @@ async def main():
             await pg.reload(); await pg.wait_for_timeout(500)
             ok(not await pg.is_visible("#entrada") and len(await sal()) == 2, "recarga: entra sin pedir clave")
             # gasto a mano en Santander
-            await pg.click("#nuevo"); await pg.fill("#f-importe", "10,01"); await pg.fill("#f-comercio", "Café"); await pg.click("#f-categorias label:nth-child(2)")
+            await pg.click("#nuevo"); await pg.fill("#f-importe", "10,01"); await pg.fill("#f-comercio", "Café"); await pg.click("#f-categorias label:nth-child(3)")
             await pg.click("#f-cuentas label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
             s = await sal(); g = [x for x in bd["gastos"] if x["comercio"] == "Café"]
             ok(s[0] == "Banco Santander=134,00 €" and len(g) == 1 and g[0]["importe"] == 10.01 and g[0]["cuenta"] == "banco-santander" and g[0]["origen"] == "A mano" and len(g[0]["fecha"]) == 19, "gasto a mano: resta del saldo y llega a la hoja")
@@ -100,13 +100,13 @@ async def main():
             await pg.evaluate(DESLIZA + "(-60, -150)"); await pg.wait_for_timeout(450); d5 = [await vis(), await pg.evaluate("document.querySelector('#v-cuentas').style.transform")]
             ok(d1 == ["v-resumen", ["vista sale", True]] and d2 == "v-cuentas" and d3 == "v-cuentas" and d4 == "v-cuentas" and d5 == ["v-cuentas", ""] and pil == [True, 1], "deslizar de lado cambia de pestaña con transición; corto, vertical o antes de la primera, no; la píldora del menú acaba en la pestaña nueva y la vieja se esconde (%s %s %s %s %s %s)" % (d1, d2, d3, d4, d5, pil))
             await pg.click('[data-gasto="gb2"]'); await pg.wait_for_timeout(200)
-            tit = await pg.inner_text("#hoja-titulo"); await pg.fill("#f-comercio", "Bizum a Juan"); await pg.click("#f-categorias label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
+            tit = await pg.inner_text("#hoja-titulo"); await pg.fill("#f-comercio", "Bizum a Juan"); await pg.click("#f-categorias label:nth-child(3)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
             g2 = [x for x in bd["gastos"] if x["id"] == "gb2"][0]
             ok("Qué fue" in tit and g2["comercio"] == "Bizum a Juan" and g2["categoria"] == "Restaurantes" and g2["tipo"] == "gasto" and g2["origen"] == "Banco" and g2["cuenta"] == "banco-santander" and g2["fecha"] == t2, "identificar un gasto: guarda nombre y categoría sin tocar lo demás")
             await pg.click('[data-gasto="gb1"]'); await pg.wait_for_timeout(200)
-            oculto = await pg.is_hidden("#f-cat-grupo"); await pg.fill("#f-comercio", "Bizum de Sandra"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
+            oculto = await pg.is_checked("#f-cat-no"); await pg.fill("#f-comercio", "Bizum de Sandra"); await pg.click("#f-guardar"); await pg.wait_for_timeout(400)
             g1 = [x for x in bd["gastos"] if x["id"] == "gb1"][0]; s = await sal()
-            ok(oculto and g1["comercio"] == "Bizum de Sandra" and g1["tipo"] == "ingreso" and g1["categoria"] == "" and await pg.locator("#v-cuentas .sec .mov").count() == 0 and s[0] == "Banco Santander=143,00\u00a0€", "identificar un ingreso: sin categoría, sigue siendo ingreso y el saldo no cambia")
+            ok(oculto and g1["comercio"] == "Bizum de Sandra" and g1["tipo"] == "ingreso" and g1["categoria"] == "" and await pg.locator("#v-cuentas .sec .mov").count() == 0 and s[0] == "Banco Santander=143,00\u00a0€", "identificar un ingreso: por defecto no es devolución, sigue siendo ingreso y el saldo no cambia")
             await pg.click('#v-cuentas [data-cuenta="banco-santander"]'); await pg.wait_for_timeout(200); fin = await pg.input_value("#c-fin")
             await pg.fill("#c-tarjetas", "Santander, Mastercard"); await pg.click("#c-guardar"); await pg.wait_for_timeout(400)
             cs = [x for x in bd["cuentas"] if x["id"] == "banco-santander"][0]
@@ -231,7 +231,7 @@ async def main():
             ok(cerr and caja and await pg.is_hidden("#menu"), "ajustes: cambiar de pestaña lo cierra y cabe en la pantalla")
             # sin conexión: el cambio se deshace y avisa
             caido["v"] = True
-            await pg.click('[data-tab="cuentas"]'); await pg.click("#nuevo"); await pg.fill("#f-importe", "50"); await pg.click("#f-categorias label:nth-child(1)"); await pg.click("#f-cuentas label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(500)
+            await pg.click('[data-tab="cuentas"]'); await pg.click("#nuevo"); await pg.fill("#f-importe", "50"); await pg.click("#f-categorias label:nth-child(2)"); await pg.click("#f-cuentas label:nth-child(2)"); await pg.click("#f-guardar"); await pg.wait_for_timeout(500)
             s = await sal(); t = await pg.inner_text("#toast")
             ok(s[0] == "Banco Santander=143,00 €" and "Sin conexión" in t, "sin conexión: no resta y avisa (%s | %s)" % (s[0], t))
             caido["v"] = False

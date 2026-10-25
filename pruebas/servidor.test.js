@@ -111,12 +111,16 @@ ok(post({ clave: 'k', accion: 'leer' }).cuentas.length === 1, 'cuentas: borrado'
 ok(hojas.Gastos.f[0][9] === 'Tipo' && hojas.Gastos.f[0][10] === 'Cuenta destino', 'cabecera con Tipo y Cuenta destino');
 t = post({ clave: 'k', accion: 'leer' });
 ok(t.gastos.every(q => q.tipo === 'gasto' && q.destino === ''), 'las filas antiguas y los pagos son gastos');
-post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gi1', fecha: '2026-10-09T19:00:00', comercio: 'Nómina', importe: 1500, categoria: 'Ocio', cuenta: 'banco-santander', tipo: 'ingreso', origen: 'Ingreso' } });
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gi1', fecha: '2026-10-09T19:00:00', comercio: 'Nómina', importe: 1500, categoria: '', cuenta: 'banco-santander', tipo: 'ingreso', origen: 'Ingreso' } });
 post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gt1', fecha: '2026-10-09T19:01:00', comercio: 'Ahorro', importe: 200, cuenta: 'banco-santander', tipo: 'traspaso', destino: 'trade-republic', origen: 'Entre cuentas' } });
 post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gb1', fecha: '2026-10-09T19:02:00', comercio: 'Cena', importe: 20, categoria: 'Restaurantes', cuenta: 'revolut-conjunta', tipo: 'gasto', destino: 'x', origen: 'Bizum' } });
 post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gr1', fecha: '2026-10-09T19:03:00', comercio: 'Raro', importe: 1, categoria: 'Ocio', cuenta: '', tipo: 'inventado' } });
 t = post({ clave: 'k', accion: 'leer' }); const por = id => t.gastos.find(q => q.id === id);
 ok(por('gi1').tipo === 'ingreso' && por('gi1').categoria === '' && por('gi1').cuenta === 'banco-santander', 'ingreso: se guarda sin categoría');
+post({ clave: 'k', accion: 'gasto.guardar', gasto: { id: 'gd1', fecha: '2026-10-09T19:00:30', comercio: 'Bizum de Pablo', importe: 20, categoria: 'Restaurantes', cuenta: 'banco-santander', tipo: 'ingreso', origen: 'Banco' } });
+ok(post({ clave: 'k', accion: 'leer' }).gastos.find(q => q.id === 'gd1').categoria === 'Restaurantes', 'ingreso marcado como devolución: conserva su categoría');
+post({ clave: 'k', accion: 'gasto.borrar', id: 'gd1' });
+ok(api.categorizar('Claude.ai subscription') === 'Suscripciones' && api.categorizar('WHOOP') === 'Suscripciones' && api.categorizar('Apple.com/bill') === 'Suscripciones' && api.categorizar('Rest Trigueros Ii') === 'Restaurantes' && api.categorizar('EESS CAMUNAS') === 'Gasolina' && api.categorizar('Family Cash') === 'Supermercado', 'categorías: suscripciones, restaurantes, gasolineras y súper nuevos');
 ok(por('gt1').tipo === 'traspaso' && por('gt1').destino === 'trade-republic' && por('gt1').categoria === '', 'traspaso: guarda la cuenta destino');
 ok(por('gb1').tipo === 'gasto' && por('gb1').destino === '' && por('gb1').origen === 'Bizum' && por('gb1').categoria === 'Restaurantes', 'bizum: es un gasto con su categoría y sin destino');
 ok(por('gr1').tipo === 'gasto', 'un tipo desconocido se trata como gasto');

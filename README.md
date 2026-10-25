@@ -5,7 +5,7 @@ App web personal para ver el saldo de cada cuenta, los gastos del mes y los pres
 - `index.html`: la app (una sola página, sin dependencias salvo las fuentes).
 - `manifest.webmanifest`, `icon-*.png`: para añadirla a la pantalla de inicio del móvil a pantalla completa.
 - `servidor/Codigo.gs`: script de Google Apps Script que vive en la hoja de cálculo. Recibe los pagos de Apple Pay desde Atajos y sirve los datos a la app.
-- `pruebas/`: pruebas del servidor (`node pruebas/servidor.test.js`) y de la app (`python3 pruebas/app_test.py`, `python3 pruebas/ahorro_test.py` y `python3 pruebas/nomina_test.py`, necesitan Playwright).
+- `pruebas/`: pruebas del servidor (`node pruebas/servidor.test.js`) y de la app (`python3 pruebas/app_test.py`, `python3 pruebas/ahorro_test.py`, `python3 pruebas/nomina_test.py` y `python3 pruebas/devolucion_test.py`, necesitan Playwright).
 
 Cada cuenta tiene un papel (gasto diario, ahorro, inversión o conjunta). Las salidas de la cuenta de gasto que se identifican como traspaso a una cuenta de ahorro o de inversión son lo que la pestaña Ahorro cuenta como apartado; la aportación a la cuenta conjunta cuenta como gasto y los pagos hechos desde ella no.
 
@@ -19,3 +19,5 @@ Mes de nómina: cada mes empieza el día que entra la primera nómina (un ingres
 ## Mi Dieta (`dieta/`)
 
 App aparte con el plan semanal de Pepelu Vidal: un día por pantalla, deslizando a izquierda y derecha, y abre en el día de hoy. Se instala por separado desde `/mis-gastos/dieta/`.
+
+Devoluciones: un ingreso con categoría (p. ej. el Bizum de un amigo cuando pagaste tú la cuenta) resta del gasto de esa categoría y no cuenta como ingreso.
