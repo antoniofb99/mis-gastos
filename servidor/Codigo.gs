@@ -50,7 +50,13 @@ const AVISOS = [{
   banco: 'Santander',
   remitente: 'SantanderInforma@emailing.bancosantander-mail.es',
   patron: /disponible\s+(?:de\s+)?([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+cuenta\s+terminada\s+en\s+[*\s]*(\d{4})/i,
+  // Correos de cada movimiento, con su nombre: así no quedan «sin identificar».
+  // "te informamos de que CAPPUCCINO SEVI ha realizado una retención de 4.95 EUR en tu tarjeta terminada en 5418."
+  movimientos: [
+    { tipo: 'gasto', patron: /informamos\s+de\s+que\s+(.+?)\s+ha\s+realizado\s+una\s+retenci[oó]n\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+tarjeta\s+terminada\s+en\s+[*\s]*(\d{4})/i },
+  ],
 }];
+const MOV_APPLE_PAY_MIN = 15;   // un pago con tarjeta que ya llegó por Apple Pay en este margen no se apunta otra vez
 const AVISO_ESPERA_S = 90;   // no se procesa un aviso hasta que tiene esta antigüedad: da tiempo a que llegue el pago de Apple Pay
 const AVISO_MARGEN_S = 60;   // los movimientos apuntados hasta este rato después del aviso se dan por incluidos en su saldo
 const ORIGEN_BANCO = 'Banco';
@@ -653,12 +659,53 @@ function sincronizarCorreo() {
       const m = pendientes[i];
       if (ahora - m.t < AVISO_ESPERA_S * 1000) break;   // demasiado reciente: se verá en la siguiente pasada
       nuevos++;
-      if (aplicarAviso(aviso, m)) aplicados++;
+      if (aplicarMovimiento(aviso, m) || aplicarAviso(aviso, m)) aplicados++;
       hechos.push(m.id);
     }
   });
   props.setProperty('correoHechos', JSON.stringify(hechos.slice(-150)));
   return { ok: true, nuevos: nuevos, aplicados: aplicados };
+}
+
+// Correo de un movimiento concreto (p. ej. un pago con tarjeta): se apunta con su nombre y su categoría.
+// Si ya llegó por Apple Pay no se repite; si un aviso de saldo ya lo dejó «sin identificar», se le pone nombre.
+function aplicarMovimiento(aviso, m) {
+  const reglas = aviso.movimientos || [];
+  for (let r = 0; r < reglas.length; r++) {
+    const hallado = reglas[r].patron.exec(m.texto);
+    if (!hallado) continue;
+    const importe = leerImporte(hallado[2]);
+    if (typeof importe !== 'number' || !(importe > 0)) return false;
+    const comercio = bonito(hallado[1]), fin = hallado[3], tipo = reglas[r].tipo;
+    const cuentas = leerCuentas();
+    const c = cuentas.filter(function (x) { return x.tarjetas.some(function (t) { return t.indexOf(fin) > -1; }); })[0] ||
+      cuentas.filter(function (x) { return x.terminaEn === fin; })[0] ||
+      cuentas.filter(function (x) { return x.terminaEn && x.tarjetas.some(function (t) { return t.toLowerCase().indexOf(aviso.banco.toLowerCase()) > -1; }); })[0];
+    if (!c) return false;
+    const zona = zonaHoraria(), t = m.t;
+    const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
+    const igual = function (g) { return tipoValido(g.tipo) === tipo && Math.abs((Number(g.importe) || 0) - importe) < 0.005; };
+    const gastos = leerGastos();
+    if (gastos.some(function (g) { return igual(g) && g.origen === 'Apple Pay' && Math.abs(ms(g) - t) <= MOV_APPLE_PAY_MIN * 60000; })) return true;
+    const h = hoja('Gastos', H_GASTOS);
+    const duda = gastos.filter(function (g) { return igual(g) && g.origen === ORIGEN_BANCO && g.comercio === SIN_IDENTIFICAR && g.cuenta === c.id && Math.abs(ms(g) - t) <= 864e5; })[0];
+    const categoria = tipo === 'gasto' ? categorizar(comercio) : '';
+    if (duda) {
+      const fila = buscarFila(h, 8, duda.id);
+      h.getRange(fila, 2).setValue(texto(comercio));
+      h.getRange(fila, 4, 1, 2).setValues([[texto('Tarjeta **' + fin), categoria]]);
+      return true;
+    }
+    h.appendRow([new Date(t), texto(comercio), importe, texto('Tarjeta **' + fin), categoria, ORIGEN_BANCO, '', nuevoId(), c.id, tipo, '']);
+    return true;
+  }
+  return false;
+}
+// "CAPPUCCINO SEVI" -> "Cappuccino Sevi"; lo que ya viene en mayúsculas y minúsculas se deja igual.
+function bonito(t) {
+  const s = String(t || '').replace(/\s+/g, ' ').trim();
+  if (s !== s.toUpperCase()) return s;
+  return s.toLowerCase().replace(/(^|[\s.\-\/])([a-zà-ÿ])/g, function (x, a, b) { return a + b.toUpperCase(); });
 }
 
 // Pone en la cuenta el saldo que dice el banco y apunta la diferencia con lo calculado.
@@ -740,8 +787,11 @@ function textoDelCorreo(mensaje) {
     (p.parts || []).forEach(recorrer);
   })(mensaje.payload);
   const html = partes.html.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ').replace(/&euro;/gi, '€').replace(/&#42;|&ast;/gi, '*').replace(/&[a-z#0-9]+;/gi, ' ');
-  return [partes.plano, html, mensaje.snippet || ''].join(' ').replace(/\s+/g, ' ');
+    .replace(/&nbsp;/gi, ' ').replace(/&euro;/gi, '€').replace(/&#42;|&ast;/gi, '*')
+    .replace(/&([aeiouAEIOU])(acute|grave|uml);/g, function (x, v, k) { return v.normalize('NFD') + { acute: '\u0301', grave: '\u0300', uml: '\u0308' }[k]; })
+    .replace(/&([nN])tilde;/g, function (x, v) { return v + '\u0303'; }).replace(/&amp;/gi, '&')
+    .replace(/&#(\d+);/g, function (x, n) { return String.fromCharCode(Number(n)); }).replace(/&[a-z#0-9]+;/gi, ' ');
+  return [partes.plano, html, mensaje.snippet || ''].join(' ').normalize('NFC').replace(/\s+/g, ' ');
 }
 
 function conSegundos(fecha) {

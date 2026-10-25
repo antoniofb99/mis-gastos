@@ -324,4 +324,16 @@ ok(pid.ok && pid.id === 'tr-20261016-2003' && pid2.repetido && post({ clave: 'k'
 ok(esperas[0] === 'try2000' && esperas.indexOf('wait20000') > 0, 'un pago no espera al candado (aunque esté ocupado se apunta); leer sí espera');
 let lote = post({ clave: 'k', accion: 'pagos', pagos: [{ comercio: 'Family Cash', importe: '2,25', tarjeta: 'Revolut', id: 'p1' }, { comercio: 'Tienda El Barat', importe: '28,70', tarjeta: 'Santander', id: 'tr-20261016-2003' }] });
 ok(lote.ok && lote.pagos.length === 2 && !lote.pagos[0].repetido && lote.pagos[1].repetido, 'varios pagos de golpe: apunta los nuevos y salta los que ya estaban');
+// ---------------------------------------------------------------- correos de pagos con tarjeta
+const ret = (id, t, comercio, importe) => correos.push({ id, de: DE, t, html: '<p>Antonio,</p><p>te informamos de que <b>' + comercio + ' ha realizado una retenci&oacute;n de ' + importe + ' EUR en tu tarjeta</b> terminada en 5418.</p><p>Para m&aacute;s informaci&oacute;n, entra en tu Banca Online.</p>' });
+const hace = min => Date.now() - min * 60000;
+post({ clave: 'k', comercio: 'Bar Pepe', importe: '7,50 €', tarjeta: 'Santander' });   // pagado con Apple Pay ahora mismo
+hojas.Gastos.f.push([new Date(hace(30)), 'Sin identificar', 12.3, '', 'Otros', 'Banco', '', 'gsi1', 'banco-santander', 'gasto', '']);
+ret('m1', hace(5), 'CAPPUCCINO SEVI', '4.95'); ret('m2', hace(3), 'BAR PEPE', '7.50'); ret('m3', hace(4), 'IBERDROLA CLIENTES', '12.30');
+t = post({ clave: 'k', accion: 'leer' });
+const cap = t.gastos.filter(q => q.comercio === 'Cappuccino Sevi');
+ok(cap.length === 1 && cap[0].importe === 4.95 && cap[0].cuenta === 'banco-santander' && cap[0].origen === 'Banco' && cap[0].tarjeta === 'Tarjeta **5418' && cap[0].tipo === 'gasto', 'correo de tarjeta: apunta el pago con su comercio y en su cuenta (' + JSON.stringify(cap) + ')');
+ok(t.gastos.filter(q => Math.abs(q.importe - 7.5) < 0.001 && /pepe/i.test(q.comercio)).length === 1, 'correo de tarjeta: si ya llegó por Apple Pay, no lo repite');
+const ib = t.gastos.find(q => q.id === 'gsi1');
+ok(ib.comercio === 'Iberdrola Clientes' && ib.tarjeta === 'Tarjeta **5418' && !t.gastos.some(q => q.comercio === 'Sin identificar' && q.importe === 12.3), 'correo de tarjeta: le pone nombre al «sin identificar» del mismo importe');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);
