@@ -919,7 +919,7 @@ dialog.candado::backdrop{background:var(--bg)}
       : t === 'traspaso' ? '<span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span>'
       : iconoCat(gastoDe(g) || g.categoria || 'Otros');
     return '<button class="mov" type="button" data-gasto="' + esc(g.id) + '">' + ico +
-      '<span class="m-t"><span class="m-n">' + esc(g.comercio || 'Sin nombre') + '</span>' +
+      '<span class="m-t"><span class="m-n">' + esc(sinIdentificar(g) ? (t === 'ingreso' ? 'Entrada en la cuenta' : 'Salida de la cuenta') : (g.comercio || 'Sin nombre')) + '</span>' +
       '<span class="m-s">' + esc(sub.join(' · ')) + '</span></span>' +
       '<span class="m-i' + (t === 'ingreso' ? ' mas' : '') + '">' + esc((t === 'ingreso' ? '+' : '') + eur(g.importe)) + '</span></button>';
   }
@@ -1187,12 +1187,8 @@ dialog.candado::backdrop{background:var(--bg)}
       });
       h += '</div></section>';
     }
-    var dudas = S.todos.filter(sinIdentificar).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
-    if (dudas.length) {
-      h += '<section class="sec"><header><h2>Sin identificar</h2><span class="num">' + dudas.length + '</span></header>' +
-        '<p class="nota">Tu banco ha avisado de estos movimientos sin decir qué son. Toca cada uno para ponerle nombre y categoría.</p>' +
-        '<div class="movs caja">' + dudas.slice(0, 10).map(function (g) { return filaMov(g, true); }).join('') + '</div></section>';
-    }
+    // Lo que el banco avisa sin decir qué es ya no se pide en Inicio: se ve en Movimientos como entrada o salida de la cuenta.
+
     var pend = {}, orden = [];
     if (todas.length) S.todos.forEach(function (g) {
       if (g.tarjeta && !cuentaDe(g)) {
@@ -2043,7 +2039,7 @@ dialog.candado::backdrop{background:var(--bg)}
      copia antigua cuando está instalada en la pantalla de inicio). No se navega a ella: en una app instalada,
      iOS deja a veces la pantalla más corta después de recargar y el menú se queda despegado del borde.
      En su lugar se descarga la página nueva y se escribe encima de la actual. */
-  var VERSION = '2026-10-25.2348';
+  var VERSION = '2026-10-27.1226';
   async function comprobarVersion() {
     try {
       var libre = function () { return BIO.estado === 'no' && !DB.pendientes() && !document.querySelector('dialog[open]'); };   // no interrumpir lo que se está haciendo

@@ -52,11 +52,16 @@ const AVISOS = [{
   patron: /disponible\s+(?:de\s+)?([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+cuenta\s+terminada\s+en\s+[*\s]*(\d{4})/i,
   // Correos de cada movimiento, con su nombre: así no quedan «sin identificar».
   // "te informamos de que CAPPUCCINO SEVI ha realizado una retención de 4.95 EUR en tu tarjeta terminada en 5418."
+  // "te confirmamos que has pagado 62.26 EUR con tu tarjeta terminada en 5418 en REPSOL WAYLET."
+  // "te informamos de que el 2026-11-02 se cargará el recibo de 64.88 EUR emitido por ASISA, ASISTENCIA SANITARIA en tu cuenta terminada en **0061."
   movimientos: [
-    { tipo: 'gasto', patron: /informamos\s+de\s+que\s+(.+?)\s+ha\s+realizado\s+una\s+retenci[oó]n\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+tarjeta\s+terminada\s+en\s+[*\s]*(\d{4})/i },
+    { tipo: 'gasto', patron: /informamos\s+de\s+que\s+(.+?)\s+ha\s+realizado\s+una\s+retenci[oó]n\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+tarjeta\s+terminada\s+en\s+[*\s]*(\d{4})/i, comercio: 1, importe: 2, fin: 3 },
+    { tipo: 'gasto', patron: /has\s+pagado\s+([\d.,]+)\s*(?:EUR|€)\s+con\s+tu\s+tarjeta\s+terminada\s+en\s+[*\s]*(\d{4})\s+en\s+(.+?)\.\s+(?:Consulta|Para|Gracias)/i, comercio: 3, importe: 1, fin: 2 },
+    { tipo: 'gasto', recibo: true, patron: /el\s+(\d{4}-\d{2}-\d{2})\s+se\s+cargar[aá]\s+el\s+recibo\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+emitido\s+por\s+(.+?)\s+en\s+tu\s+cuenta\s+terminada\s+en\s+[*\s]*(\d{4})/i, dia: 1, importe: 2, comercio: 3, fin: 4 },
   ],
 }];
 const MOV_APPLE_PAY_MIN = 15;   // un pago con tarjeta que ya llegó por Apple Pay en este margen no se apunta otra vez
+const MOV_MISMO_DIAS = 3;      // el mismo pago (mismo importe y comercio parecido) avisado otra vez en estos días: no se repite
 const AVISO_ESPERA_S = 90;   // no se procesa un aviso hasta que tiene esta antigüedad: da tiempo a que llegue el pago de Apple Pay
 const AVISO_MARGEN_S = 60;   // los movimientos apuntados hasta este rato después del aviso se dan por incluidos en su saldo
 const ORIGEN_BANCO = 'Banco';
@@ -70,12 +75,12 @@ const F_FECHA = "yyyy-MM-dd'T'HH:mm:ss";
 const CATEGORIAS = [
   ['Suscripciones', ['claude', 'anthropic', 'whoop', 'icloud', 'apple.com']],
   ['Supermercado', ['mercadona', 'lidl', 'carrefour', 'aldi', ' dia ', 'alcampo', 'eroski', 'consum', 'supersol', 'coviran', 'masymas', ' mas ', 'family cash', 'euro cash', 'eurocash']],
-  ['Gasolina', ['repsol', 'cepsa', 'moeve', ' bp ', 'shell', 'galp', 'petroprix', 'plenoil', 'plenergy', 'ballenoil', 'gasolinera', 'e.s.', 'eess', 'estacion de servicio']],
+  ['Gasolina', ['repsol', 'cepsa', 'moeve', ' bp ', 'shell', 'galp', 'petroprix', 'plenoil', 'plenergy', 'ballenoil', 'waylet', 'gasolinera', 'e.s.', 'eess', 'estacion de servicio']],
   ['Restaurantes', ['restaurante', ' rest ', ' bar ', 'cafeteria', ' cafe ', 'cappuccino', 'burger', 'kebab', 'doner', 'pizz', 'taberna', 'helad', 'rodilla', 'mcdonald', 'kfc', 'telepizza', 'domino', 'glovo', 'just eat', 'uber eats', 'cerveceria', 'meson', ' venta ']],
   ['Coche', ['seguro coche', 'mapfre', 'mutua madrilena', 'linea directa', ' itv', 'taller', 'neumatic', 'norauto', 'midas', 'feu vert']],
   ['Transporte', ['renfe', 'uber', 'cabify', 'bolt', 'taxi', 'parking', 'aparcamiento', 'peaje', 'autopista', 'alsa']],
   ['Compras', ['amazon', 'zara', 'decathlon', 'el corte ingles', 'ikea', 'leroy', 'mediamarkt', 'media markt', 'primark', 'primor', 'joyeria', 'aliexpress']],
-  ['Salud', ['farmacia', 'clinica', 'fisio', 'dental', 'optica', 'nutricion']],
+  ['Salud', ['farmacia', 'clinica', 'fisio', 'dental', 'optica', 'nutricion', 'asisa', 'sanitas', 'adeslas', ' dkv']],
   ['Ocio', [' cine', 'cines', 'spotify', 'netflix', 'hbo', 'disney', 'steam', 'playstation', 'ticketmaster', 'loter', 'discoteca']],
 ];
 const CATEGORIA_POR_DEFECTO = 'Otros';
@@ -121,6 +126,7 @@ function doPost(e) {
       case 'cuenta.borrar': return responder(borrarFila('Cuentas', H_CUENTAS, 1, datos.id));
       case 'fondo.guardar': return responder(guardarFondo(datos.fondo));
       case 'fondo.borrar': return responder(borrarFondo(datos.id));
+      case 'correo.repasar': return responder(repasarCorreo(Math.min(30, Number(datos.dias) || 10)));
       default: return responder({ ok: false, error: 'Acción desconocida' });
     }
   } catch (err) {
@@ -670,31 +676,40 @@ function sincronizarCorreo() {
     }
   });
   props.setProperty('correoHechos', JSON.stringify(hechos.slice(-150)));
+  try { nombrarEsperados(); } catch (err) { /* un recibo sin nombre no rompe la lectura */ }
   return { ok: true, nuevos: nuevos, aplicados: aplicados };
 }
 
 // Correo de un movimiento concreto (p. ej. un pago con tarjeta): se apunta con su nombre y su categoría.
-// Si ya llegó por Apple Pay no se repite; si un aviso de saldo ya lo dejó «sin identificar», se le pone nombre.
-function aplicarMovimiento(aviso, m) {
+// Si ya está apuntado (por Apple Pay o por otro correo del mismo pago) no se repite; si un aviso de saldo ya lo
+// dejó «sin identificar», se le pone nombre. Con soloNombrar (al repasar correos viejos) solo se ponen nombres.
+// Un recibo anunciado («se cargará el recibo…») se guarda y nombra el «sin identificar» que llegue ese día.
+function aplicarMovimiento(aviso, m, soloNombrar) {
   const reglas = aviso.movimientos || [];
   for (let r = 0; r < reglas.length; r++) {
-    const hallado = reglas[r].patron.exec(m.texto);
+    const regla = reglas[r], hallado = regla.patron.exec(m.texto);
     if (!hallado) continue;
-    const importe = leerImporte(hallado[2]);
+    const importe = leerImporte(hallado[regla.importe]);
     if (typeof importe !== 'number' || !(importe > 0)) return false;
-    const comercio = bonito(hallado[1]), fin = hallado[3], tipo = reglas[r].tipo;
+    const comercio = bonito(hallado[regla.comercio]).replace(/[\s,.]+$/, ''), fin = hallado[regla.fin], tipo = regla.tipo;
     const cuentas = leerCuentas();
     const c = cuentas.filter(function (x) { return x.tarjetas.some(function (t) { return t.indexOf(fin) > -1; }); })[0] ||
       cuentas.filter(function (x) { return x.terminaEn === fin; })[0] ||
       cuentas.filter(function (x) { return x.terminaEn && x.tarjetas.some(function (t) { return t.toLowerCase().indexOf(aviso.banco.toLowerCase()) > -1; }); })[0];
     if (!c) return false;
+    if (regla.recibo) { guardarEsperado({ dia: hallado[regla.dia], importe: importe, comercio: comercio, cuenta: c.id }); nombrarEsperados(); return true; }
     const zona = zonaHoraria(), t = m.t;
     const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
     const igual = function (g) { return tipoValido(g.tipo) === tipo && Math.abs((Number(g.importe) || 0) - importe) < 0.005; };
     const gastos = leerGastos();
-    if (gastos.some(function (g) { return igual(g) && g.origen === 'Apple Pay' && Math.abs(ms(g) - t) <= MOV_APPLE_PAY_MIN * 60000; })) return true;
+    const yaEsta = gastos.some(function (g) {
+      if (!igual(g) || g.comercio === SIN_IDENTIFICAR) return false;
+      const d = Math.abs(ms(g) - t);
+      return (g.origen === 'Apple Pay' && d <= MOV_APPLE_PAY_MIN * 60000) || (d <= MOV_MISMO_DIAS * 864e5 && parecido(g.comercio, comercio));
+    });
+    if (yaEsta) return true;
     const h = hoja('Gastos', H_GASTOS);
-    const duda = gastos.filter(function (g) { return igual(g) && g.origen === ORIGEN_BANCO && g.comercio === SIN_IDENTIFICAR && g.cuenta === c.id && Math.abs(ms(g) - t) <= 864e5; })[0];
+    const duda = gastos.filter(function (g) { return igual(g) && g.origen === ORIGEN_BANCO && g.comercio === SIN_IDENTIFICAR && g.cuenta === c.id && Math.abs(ms(g) - t) <= MOV_MISMO_DIAS * 864e5; })[0];
     const categoria = tipo === 'gasto' ? categorizar(comercio) : '';
     if (duda) {
       const fila = buscarFila(h, 8, duda.id);
@@ -702,10 +717,71 @@ function aplicarMovimiento(aviso, m) {
       h.getRange(fila, 4, 1, 2).setValues([[texto('Tarjeta **' + fin), categoria]]);
       return true;
     }
+    if (soloNombrar) return true;
     h.appendRow([new Date(t), texto(comercio), importe, texto('Tarjeta **' + fin), categoria, ORIGEN_BANCO, '', nuevoId(), c.id, tipo, '']);
     return true;
   }
   return false;
+}
+// Mismo comercio aunque lo escriban distinto ("Delikia Sp" / "DELIKIA SP", "Repsol Waylet" / "REPSOL"): las 4 primeras letras.
+function parecido(a, b) {
+  const n = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 4); };
+  return n(a).length >= 3 && n(a) === n(b);
+}
+// Recibos anunciados: se guardan hasta que llega su cargo (o pasan diez días).
+function guardarEsperado(e) {
+  const props = PropertiesService.getScriptProperties();
+  let lista = [];
+  try { lista = JSON.parse(props.getProperty('recibosEsperados') || '[]'); } catch (err) { lista = []; }
+  if (!lista.some(function (x) { return x.dia === e.dia && x.importe === e.importe && x.cuenta === e.cuenta; })) lista.push(e);
+  props.setProperty('recibosEsperados', JSON.stringify(lista.slice(-40)));
+}
+function nombrarEsperados() {
+  const props = PropertiesService.getScriptProperties();
+  let lista = [];
+  try { lista = JSON.parse(props.getProperty('recibosEsperados') || '[]'); } catch (err) { lista = []; }
+  if (!lista.length) return 0;
+  const zona = zonaHoraria(), hoy = Utilities.formatDate(new Date(), zona, 'yyyy-MM-dd');
+  const gastos = leerGastos(), h = hoja('Gastos', H_GASTOS);
+  let n = 0;
+  const quedan = lista.filter(function (e) {
+    const desde = sumarDias(e.dia, -2), hasta = sumarDias(e.dia, 4);
+    const g = gastos.filter(function (x) {
+      const dia = String(x.fecha).slice(0, 10);
+      return x.comercio === SIN_IDENTIFICAR && x.origen === ORIGEN_BANCO && x.cuenta === e.cuenta && tipoValido(x.tipo) === 'gasto' &&
+        Math.abs((Number(x.importe) || 0) - e.importe) < 0.005 && dia >= desde && dia <= hasta;
+    })[0];
+    if (g) {
+      const fila = buscarFila(h, 8, g.id);
+      h.getRange(fila, 2).setValue(texto('Recibo ' + e.comercio));
+      h.getRange(fila, 5).setValue(categorizar(e.comercio));
+      g.comercio = 'Recibo ' + e.comercio; n++;
+      return false;
+    }
+    return hoy <= sumarDias(e.dia, 10);
+  });
+  props.setProperty('recibosEsperados', JSON.stringify(quedan));
+  return n;
+}
+function sumarDias(dia, n) {
+  const p = String(dia).split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n));
+  return d.toISOString().slice(0, 10);
+}
+// Vuelve a leer los correos de los últimos días solo para poner nombre a lo que quedó «sin identificar».
+function repasarCorreo(dias) {
+  let nombrados = 0;
+  AVISOS.forEach(function (aviso) {
+    const lista = Gmail.Users.Messages.list('me', { q: 'from:' + aviso.remitente + ' newer_than:' + (dias || 10) + 'd', maxResults: 100 });
+    (lista.messages || []).map(function (m) {
+      const completo = Gmail.Users.Messages.get('me', m.id, { format: 'full' });
+      return { id: m.id, t: Number(completo.internalDate), texto: textoDelCorreo(completo) };
+    }).sort(function (a, b) { return a.t - b.t; }).forEach(function (m) {
+      const antes = leerGastos().filter(function (g) { return g.comercio === SIN_IDENTIFICAR; }).length;
+      aplicarMovimiento(aviso, m, true);
+      if (leerGastos().filter(function (g) { return g.comercio === SIN_IDENTIFICAR; }).length < antes) nombrados++;
+    });
+  });
+  return { ok: true, nombrados: nombrados + nombrarEsperados(), quedan: leerGastos().filter(function (g) { return g.comercio === SIN_IDENTIFICAR; }).length };
 }
 // "CAPPUCCINO SEVI" -> "Cappuccino Sevi"; lo que ya viene en mayúsculas y minúsculas se deja igual.
 function bonito(t) {

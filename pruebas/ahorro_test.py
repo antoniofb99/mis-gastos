@@ -71,7 +71,7 @@ async def main():
             tk = await pg.inner_text("#v-ahorro .ticket")
             ok(await pg.locator(".papel").count() == 0 and "+300,00" in tk and "15 % de lo que ha entrado" in tk and "+2.000,00" in tk, "ahorro: el mes muestra lo apartado y qué parte es de lo que ha entrado (%s)" % tk.replace("\n", " | "))
             # --- identificar una salida como traspaso
-            await pg.click('[data-tab="cuentas"]'); await pg.click('[data-gasto="d4"]'); await pg.wait_for_timeout(200)
+            await pg.click('[data-tab="movimientos"]'); await pg.wait_for_timeout(450); await pg.click('#v-movimientos [data-gasto="d4"]'); await pg.wait_for_timeout(200)
             v0 = [await pg.is_visible("#f-que-grupo"), await pg.is_hidden("#f-otra-grupo"), await pg.is_visible("#f-cat-grupo"), await pg.inner_text("#f-que-traspaso-txt")]
             await pg.click("#f-que-grupo label:nth-child(2)"); await pg.wait_for_timeout(100)
             v1 = [await pg.is_visible("#f-otra-grupo"), await pg.is_hidden("#f-cat-grupo"), await pg.is_hidden("#f-cuenta-grupo")]
@@ -81,7 +81,7 @@ async def main():
             await pg.click('#f-otras label:has(input[value="mi"])'); await pg.click("#f-guardar"); await pg.wait_for_timeout(300)
             ok(v0 == [True, True, True, "Traspaso a otra cuenta"] and v1 == [True, True, True] and otras == ["rev", "tr", "mi"] and "Elige a qué cuenta" in e1, "traspaso: al identificar una salida se puede decir a qué cuenta fue")
             ok(g("d4")["tipo"] == "traspaso" and g("d4")["cuenta"] == "san" and g("d4")["destino"] == "mi" and g("d4")["comercio"] == "Traspaso a MyInvestor" and g("d4")["categoria"] == "" and g("d4")["origen"] == "Banco", "traspaso: se guarda con origen y destino")
-            await pg.click('[data-gasto="d5"]'); await pg.click("#f-que-grupo label:nth-child(2)"); await pg.click('#f-otras label:has(input[value="rev"])'); await pg.fill("#f-comercio", "Aportación mensual"); await pg.click("#f-guardar"); await pg.wait_for_timeout(300)
+            await pg.click('#v-movimientos [data-gasto="d5"]'); await pg.click("#f-que-grupo label:nth-child(2)"); await pg.click('#f-otras label:has(input[value="rev"])'); await pg.fill("#f-comercio", "Aportación mensual"); await pg.click("#f-guardar"); await pg.wait_for_timeout(300)
             sal = await pg.eval_on_selector_all(".cuenta", "els=>els.map(e=>e.querySelector('.nombre').textContent+'='+e.querySelector('.saldo').textContent)")
             sal.append("MyInvestor=" + await pg.eval_on_selector('#v-patrimonio .obj[data-cuenta="mi"] .cifra', "e => e.textContent"))   # las inversiones ya no salen en Inicio
             ok(sal == ["Banco Santander=2.010,00 €", "Revolut (Conjunta)=670,00 €", "Trade Republic=4.300,00 €", "MyInvestor=9.200,00 €"], "traspaso: resta de una cuenta y suma en la otra (%s)" % sal)

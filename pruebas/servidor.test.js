@@ -340,4 +340,21 @@ ok(cap.length === 1 && cap[0].importe === 4.95 && cap[0].cuenta === 'banco-santa
 ok(t.gastos.filter(q => Math.abs(q.importe - 7.5) < 0.001 && /pepe/i.test(q.comercio)).length === 1, 'correo de tarjeta: si ya llegó por Apple Pay, no lo repite');
 const ib = t.gastos.find(q => q.id === 'gsi1');
 ok(ib.comercio === 'Iberdrola Clientes' && ib.tarjeta === 'Tarjeta **5418' && !t.gastos.some(q => q.comercio === 'Sin identificar' && q.importe === 12.3), 'correo de tarjeta: le pone nombre al «sin identificar» del mismo importe');
+// ---------------------------------------------------------------- otros correos del Santander
+const pag = (id, t, comercio, importe) => correos.push({ id, de: DE, t, html: '<p>Antonio, te confirmamos que has pagado ' + importe + ' EUR con tu tarjeta terminada en 5418 en ' + comercio + '. Consulta todos tus detalles y movimientos en tu Banca Online.</p>' });
+const hoyD = new Date(), dd = n => { const x = new Date(hoyD.getTime() + n * 864e5); return x.getFullYear() + '-' + p2(x.getMonth() + 1) + '-' + p2(x.getDate()); };
+ret('n1', hace(50), 'DELIKIA SP', '1.25'); pag('n2', hace(40), 'DELIKIA SP', '1.25');   // retención y luego confirmación del mismo pago
+pag('n3', hace(30), 'LA PARADA A5, S.L', '5.14');
+correos.push({ id: 'n4', de: DE, t: hace(20), html: '<p>Antonio, te informamos de que el ' + dd(0) + ' se cargar&aacute; el recibo de 64.88 EUR emitido por ASISA, ASISTENCIA SANITARIA en tu cuenta terminada en **0061. Para m&aacute;s informaci&oacute;n, entra en tu App Santander.</p>' });
+hojas.Gastos.f.push([new Date(hace(10)), 'Sin identificar', 64.88, '', 'Otros', 'Banco', '', 'gsi2', 'banco-santander', 'gasto', '']);
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.gastos.filter(q => q.comercio === 'Delikia Sp').length === 1, 'pago con tarjeta avisado dos veces (retención y confirmación): se apunta una vez');
+const lp = t.gastos.filter(q => q.comercio === 'La Parada A5, S.L');
+ok(lp.length === 1 && lp[0].importe === 5.14 && lp[0].cuenta === 'banco-santander', 'correo «has pagado … en COMERCIO»: se apunta con su comercio (' + JSON.stringify(lp) + ')');
+const asisa = t.gastos.find(q => q.id === 'gsi2');
+ok(asisa.comercio === 'Recibo Asisa, Asistencia Sanitaria' && asisa.categoria === 'Salud', 'recibo anunciado: pone nombre y categoría al cargo sin identificar (' + asisa.comercio + ')');
+hojas.Gastos.f.push([new Date(hace(8)), 'Sin identificar', 9.99, '', 'Otros', 'Banco', '', 'gsi3', 'banco-santander', 'gasto', '']);
+pag('n5', hace(9), 'NETFLIX.COM', '9.99'); props.correoHechos = JSON.stringify(JSON.parse(props.correoHechos).concat(['n5']));   // ya leído antes: solo lo ve el repaso
+const nAntes = hojas.Gastos.f.length; const rep = post({ clave: 'k', accion: 'correo.repasar', dias: 5 });
+ok(rep.ok && rep.nombrados >= 1 && hojas.Gastos.f.length === nAntes && post({ clave: 'k', accion: 'leer' }).gastos.find(q => q.id === 'gsi3').comercio === 'Netflix.Com', 'repasar correos: nombra lo que quedó sin identificar y no añade pagos viejos (' + JSON.stringify(rep) + ')');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);
