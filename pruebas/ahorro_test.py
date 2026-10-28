@@ -164,7 +164,7 @@ async def main():
             bd["gastos"].append(mov("t9", (datetime.now() + timedelta(seconds=2)).strftime("%Y-%m-%dT%H:%M:%S"), "Traspaso a MyInvestor", 50, "traspaso", destino="mi"))
             await pg.click('[data-tab="ahorro"]'); await pg.wait_for_timeout(2200); await pg.evaluate("scrollTo(0,0)"); await pg.evaluate(TIRAR); await pg.wait_for_timeout(500)
             mi = await pg.inner_text('#v-ahorro .obj[data-cuenta="mi"]')
-            ok("Aportado: 8.000,00" in mi and "9.250,00" in mi, "fondos: con fondos, lo aportado no cuenta dos veces el traspaso (lo suma el servidor al confirmarse la compra) (%s)" % mi.replace("\n", " | ")[:120])
+            ok("Aportado: 8.250,00" in mi and "9.250,00" in mi and "+1.000,00" in mi, "fondos: el dinero mandado y aún sin invertir cuenta en el valor y en lo aportado, no como ganancia (%s)" % mi.replace("\n", " | ")[:120])
             ok("Fidelity S&P 500 Index EUR P Acc" in mi and "7.229,20" in mi and "422,02 part. × 17,13 €" in mi and "precio del 8 " in mi and "917,10" in mi and "× 1,8312 €" in mi, "fondos: la tarjeta de inversión enseña cada fondo con participaciones, precio y valor (%s)" % mi.replace("\n", " | "))
             await pg.screenshot(path="/tmp/claude-0/-home-claude-mis-gastos/dd460c8b-0267-5366-b734-87cbbda3f7a9/scratchpad/w-fondos-1.png", full_page=True)
             await pg.click('#v-ahorro .obj[data-cuenta="mi"]'); await pg.wait_for_timeout(200)
