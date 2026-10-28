@@ -61,6 +61,10 @@ const AVISOS = [{
     // el Santander solo manda este aviso para lo que entra; lo grande se toma por la nómina, que abre el mes)
     { tipo: 'ingreso', patron: /se\s+ha\s+realizado\s+un\s+movimiento\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+cuenta\s+acabada\s+en\s+[*\s]*(\d{4})/i, importe: 1, fin: 2,
       nombre: function (importe) { return importe >= NOMINA_MINIMA ? 'Nómina' : 'Transferencia recibida'; } },
+    // "te confirmamos que tu transferencia de 250,00 EUR desde la cuenta acabada en 0061 se ha enviado correctamente."
+    // Si es justo lo que pones cada mes en la cuenta conjunta (su presupuesto), es esa aportación; si no, una transferencia enviada.
+    { tipo: 'gasto', transferencia: true, patron: /tu\s+transferencia\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+desde\s+la\s+cuenta\s+acabada\s+en\s+[*\s]*(\d{4})\s+se\s+ha\s+enviado/i, importe: 1, fin: 2,
+      nombre: function () { return 'Transferencia enviada'; } },
     { tipo: 'gasto', recibo: true, patron: /el\s+(\d{4}-\d{2}-\d{2})\s+se\s+cargar[aá]\s+el\s+recibo\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+emitido\s+por\s+(.+?)\s+en\s+tu\s+cuenta\s+terminada\s+en\s+[*\s]*(\d{4})/i, dia: 1, importe: 2, comercio: 3, fin: 4 },
   ],
 }];
@@ -703,6 +707,7 @@ function aplicarMovimiento(aviso, m, soloNombrar) {
       cuentas.filter(function (x) { return x.terminaEn && x.tarjetas.some(function (t) { return t.toLowerCase().indexOf(aviso.banco.toLowerCase()) > -1; }); })[0];
     if (!c) return false;
     if (regla.recibo) { guardarEsperado({ dia: hallado[regla.dia], importe: importe, comercio: comercio, cuenta: c.id }); nombrarEsperados(); return true; }
+    if (regla.transferencia) return apuntarTransferencia(c, cuentas, importe, m.t, soloNombrar);
     const zona = zonaHoraria(), t = m.t;
     const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
     const igual = function (g) { return tipoValido(g.tipo) === tipo && Math.abs((Number(g.importe) || 0) - importe) < 0.005; };
@@ -728,6 +733,31 @@ function aplicarMovimiento(aviso, m, soloNombrar) {
   }
   return false;
 }
+// Transferencia enviada: a la cuenta conjunta si es su aportación de cada mes (el importe de su presupuesto); si no, un gasto.
+function apuntarTransferencia(c, cuentas, importe, t, soloNombrar) {
+  const conjunta = cuentas.filter(function (x) { return x.rol === 'conjunta'; })[0];
+  const pres = leerPresupuestos().filter(function (p) { return sinTildes(p.nombre) === 'cuenta conjunta'; })[0];
+  const destino = conjunta && pres && Math.abs(pres.limite - importe) < 0.005 ? conjunta : null;
+  const zona = zonaHoraria(), h = hoja('Gastos', H_GASTOS);
+  const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
+  const gastos = leerGastos();
+  const cerca = function (g) { return Math.abs((Number(g.importe) || 0) - importe) < 0.005 && g.cuenta === c.id && Math.abs(ms(g) - t) <= MOV_MISMO_DIAS * 864e5; };
+  if (gastos.some(function (g) { return cerca(g) && g.comercio !== SIN_IDENTIFICAR && (tipoValido(g.tipo) === 'traspaso' || /transferencia/i.test(g.comercio)); })) return true;
+  const fila = destino
+    ? ['Traspaso a ' + destino.nombre, importe, '', '', ORIGEN_BANCO, '', c.id, 'traspaso', destino.id]
+    : ['Transferencia enviada', importe, '', CATEGORIA_POR_DEFECTO, ORIGEN_BANCO, '', c.id, 'gasto', ''];
+  const duda = gastos.filter(function (g) { return cerca(g) && g.comercio === SIN_IDENTIFICAR && tipoValido(g.tipo) === 'gasto'; })[0];
+  if (duda) {
+    const n = buscarFila(h, 8, duda.id);
+    h.getRange(n, 2, 1, 5).setValues([[texto(fila[0]), fila[1], fila[2], fila[3], fila[4]]]);
+    h.getRange(n, 9, 1, 3).setValues([[fila[6], fila[7], fila[8]]]);
+    return true;
+  }
+  if (soloNombrar) return true;
+  h.appendRow([new Date(t), texto(fila[0]), fila[1], fila[2], fila[3], fila[4], fila[5], nuevoId(), fila[6], fila[7], fila[8]]);
+  return true;
+}
+function sinTildes(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 // Mismo comercio aunque lo escriban distinto ("Delikia Sp" / "DELIKIA SP", "Repsol Waylet" / "REPSOL"): las 4 primeras letras.
 function parecido(a, b) {
   const n = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 4); };

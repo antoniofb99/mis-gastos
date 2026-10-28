@@ -362,4 +362,11 @@ correos.push({ id: 'n7', de: DE, t: hace(5), html: '<p>Antonio, te informamos de
 t = post({ clave: 'k', accion: 'leer' });
 const nom = t.gastos.filter(q => q.comercio === 'Nómina'), tra = t.gastos.filter(q => q.comercio === 'Transferencia recibida');
 ok(nom.length === 1 && nom[0].importe === 1423.36 && nom[0].tipo === 'ingreso' && nom[0].cuenta === 'banco-santander' && nom[0].tarjeta === '' && tra.length === 1 && tra[0].importe === 45, 'correo «se ha realizado un movimiento»: la nómina entra sola (y lo pequeño, como transferencia recibida)');
+const trf = (id, t, importe) => correos.push({ id, de: DE, t, html: '<p>Antonio, te confirmamos que tu transferencia de ' + importe + ' EUR desde la cuenta acabada en 0061 se ha enviado correctamente. Para m&aacute;s informaci&oacute;n, entra en tu App Santander.</p>' });
+post({ clave: 'k', accion: 'cuenta.guardar', cuenta: { id: 'conj', nombre: 'Revolut (Conjunta)', saldo: 8, fechaSaldo: '2026-10-01T10:00:00', tarjetas: [], orden: 9, rol: 'conjunta' } });
+post({ clave: 'k', accion: 'presupuesto.guardar', presupuesto: { id: 'cuenta-conjunta', nombre: 'Cuenta conjunta', limite: 250, orden: 2 } });
+trf('n8', hace(4), '250,00'); trf('n9', hace(3), '40,00');
+t = post({ clave: 'k', accion: 'leer' });
+const ap = t.gastos.filter(q => q.tipo === 'traspaso' && q.destino === 'conj'), te = t.gastos.filter(q => q.comercio === 'Transferencia enviada');
+ok(ap.length === 1 && ap[0].importe === 250 && ap[0].cuenta === 'banco-santander' && ap[0].comercio === 'Traspaso a Revolut (Conjunta)' && te.length === 1 && te[0].importe === 40 && te[0].tipo === 'gasto', 'correo «transferencia enviada»: la de 250 va a la conjunta y otra cualquiera queda como transferencia enviada');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);
