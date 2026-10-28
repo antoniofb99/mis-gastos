@@ -369,4 +369,11 @@ trf('n8', hace(4), '250,00'); trf('n9', hace(3), '40,00');
 t = post({ clave: 'k', accion: 'leer' });
 const ap = t.gastos.filter(q => q.tipo === 'traspaso' && q.destino === 'conj'), te = t.gastos.filter(q => q.comercio === 'Transferencia enviada');
 ok(ap.length === 1 && ap[0].importe === 250 && ap[0].cuenta === 'banco-santander' && ap[0].comercio === 'Traspaso a Revolut (Conjunta)' && te.length === 1 && te[0].importe === 40 && te[0].tipo === 'gasto', 'correo «transferencia enviada»: la de 250 va a la conjunta y otra cualquiera queda como transferencia enviada');
+
+const tinm = (id, t, importe) => correos.push({ id, de: 'notificaciones@myinvestor.es', t, asunto: '** MYINVESTOR ** TRANSFERENCIA INMEDIATA', html: '<p>&gt;&gt;&gt; TRANSFERENCIA INMEDIATA DATOS PERSONALES ANTONIO</p><p>Importe Bruto Cuenta ' + importe + ' EUR XXXX-XXXX-XX-XXXXXX0061 Comisiones y Gastos Ordenante 0.00 EUR</p><p>Observaciones Inversion Importe Neto (1) ' + importe + ' EUR</p>' });
+tinm('x1', hace(3), '496.26'); trf('x2', hace(2), '496,26');   // primero MyInvestor, luego el Santander
+trf('x3', hace(2.5), '120,00'); tinm('x4', hace(2), '120.00');     // al revés
+t = post({ clave: 'k', accion: 'leer' });
+const aport = t.gastos.filter(q => q.tipo === 'traspaso' && q.destino === 'mi');
+ok(aport.length === 2 && aport.every(q => q.cuenta === 'banco-santander' && q.comercio === 'Traspaso a MyInvestor') && !t.gastos.some(q => q.comercio === 'Transferencia enviada' && (q.importe === 496.26 || q.importe === 120)), 'aportación a MyInvestor: su correo la convierte en traspaso, llegue antes o después el del Santander (' + JSON.stringify(aport.map(q => q.importe)) + ')');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

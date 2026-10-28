@@ -68,6 +68,17 @@ const AVISOS = [{
     { tipo: 'gasto', recibo: true, patron: /el\s+(\d{4}-\d{2}-\d{2})\s+se\s+cargar[aá]\s+el\s+recibo\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+emitido\s+por\s+(.+?)\s+en\s+tu\s+cuenta\s+terminada\s+en\s+[*\s]*(\d{4})/i, dia: 1, importe: 2, comercio: 3, fin: 4 },
   ],
 }];
+// MyInvestor avisa de cada transferencia que le haces, con la cuenta de origen: así se sabe que es una aportación.
+// "TRANSFERENCIA INMEDIATA … Importe Bruto Cuenta 496.26 EUR XXXX-XXXX-XX-XXXXXX0061 …"
+AVISOS.push({
+  banco: 'MyInvestor',
+  remitente: 'notificaciones@myinvestor.es',
+  patron: /(?!)/,   // no manda avisos de saldo
+  movimientos: [
+    { tipo: 'traspaso', aportacion: true, patron: /TRANSFERENCIA\s+INMEDIATA[\s\S]*?Importe\s+Bruto\s+Cuenta\s+([\d.,]+)\s*EUR\s+[X*\-\s]+(\d{4})\b/i, importe: 1, fin: 2,
+      nombre: function () { return 'Aportación a MyInvestor'; } },
+  ],
+});
 const MOV_APPLE_PAY_MIN = 15;   // un pago con tarjeta que ya llegó por Apple Pay en este margen no se apunta otra vez
 const NOMINA_MINIMA = 500;   // un ingreso avisado por correo desde esta cantidad se toma por la nómina
 const MOV_MISMO_DIAS = 3;      // el mismo pago (mismo importe y comercio parecido) avisado otra vez en estos días: no se repite
@@ -705,9 +716,14 @@ function aplicarMovimiento(aviso, m, soloNombrar) {
     const c = cuentas.filter(function (x) { return x.tarjetas.some(function (t) { return t.indexOf(fin) > -1; }); })[0] ||
       cuentas.filter(function (x) { return x.terminaEn === fin; })[0] ||
       cuentas.filter(function (x) { return x.terminaEn && x.tarjetas.some(function (t) { return t.toLowerCase().indexOf(aviso.banco.toLowerCase()) > -1; }); })[0];
-    if (!c) return false;
+    if (!c && !regla.aportacion) return false;
     if (regla.recibo) { guardarEsperado({ dia: hallado[regla.dia], importe: importe, comercio: comercio, cuenta: c.id }); nombrarEsperados(); return true; }
     if (regla.transferencia) return apuntarTransferencia(c, cuentas, importe, m.t, soloNombrar);
+    if (regla.aportacion) {
+      const origen = cuentas.filter(function (x) { return x.terminaEn === fin; })[0];
+      const destino = cuentas.filter(function (x) { return sinTildes(x.nombre).indexOf(sinTildes(aviso.banco)) > -1; })[0];
+      return origen && destino ? apuntarTransferencia(origen, cuentas, importe, m.t, soloNombrar, destino) : false;
+    }
     const zona = zonaHoraria(), t = m.t;
     const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
     const igual = function (g) { return tipoValido(g.tipo) === tipo && Math.abs((Number(g.importe) || 0) - importe) < 0.005; };
@@ -734,15 +750,25 @@ function aplicarMovimiento(aviso, m, soloNombrar) {
   return false;
 }
 // Transferencia enviada: a la cuenta conjunta si es su aportación de cada mes (el importe de su presupuesto); si no, un gasto.
-function apuntarTransferencia(c, cuentas, importe, t, soloNombrar) {
+function apuntarTransferencia(c, cuentas, importe, t, soloNombrar, destinoSabido) {
   const conjunta = cuentas.filter(function (x) { return x.rol === 'conjunta'; })[0];
   const pres = leerPresupuestos().filter(function (p) { return sinTildes(p.nombre) === 'cuenta conjunta'; })[0];
-  const destino = conjunta && pres && Math.abs(pres.limite - importe) < 0.005 ? conjunta : null;
-  const zona = zonaHoraria(), h = hoja('Gastos', H_GASTOS);
+  const destino = destinoSabido || (conjunta && pres && Math.abs(pres.limite - importe) < 0.005 ? conjunta : null);
+  const zona = zonaHoraria(), h = hoja('Gastos', H_GASTOS), h0 = function () { return h; };
   const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
   const gastos = leerGastos();
   const cerca = function (g) { return Math.abs((Number(g.importe) || 0) - importe) < 0.005 && g.cuenta === c.id && Math.abs(ms(g) - t) <= MOV_MISMO_DIAS * 864e5; };
-  if (gastos.some(function (g) { return cerca(g) && g.comercio !== SIN_IDENTIFICAR && (tipoValido(g.tipo) === 'traspaso' || /transferencia/i.test(g.comercio)); })) return true;
+  const previa = gastos.filter(function (g) { return cerca(g) && g.comercio !== SIN_IDENTIFICAR && (tipoValido(g.tipo) === 'traspaso' || /transferencia/i.test(g.comercio)); })[0];
+  if (previa) {
+    // Si ya estaba como «Transferencia enviada» y ahora se sabe a qué cuenta fue, pasa a ser un traspaso.
+    if (destino && tipoValido(previa.tipo) === 'gasto') {
+      const n = buscarFila(h0(), 8, previa.id);
+      h0().getRange(n, 2).setValue(texto('Traspaso a ' + destino.nombre));
+      h0().getRange(n, 5).setValue('');
+      h0().getRange(n, 10, 1, 2).setValues([['traspaso', destino.id]]);
+    }
+    return true;
+  }
   const fila = destino
     ? ['Traspaso a ' + destino.nombre, importe, '', '', ORIGEN_BANCO, '', c.id, 'traspaso', destino.id]
     : ['Transferencia enviada', importe, '', CATEGORIA_POR_DEFECTO, ORIGEN_BANCO, '', c.id, 'gasto', ''];
