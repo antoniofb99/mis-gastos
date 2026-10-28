@@ -757,7 +757,6 @@ function apuntarTransferencia(c, cuentas, importe, t, soloNombrar) {
   h.appendRow([new Date(t), texto(fila[0]), fila[1], fila[2], fila[3], fila[4], fila[5], nuevoId(), fila[6], fila[7], fila[8]]);
   return true;
 }
-function sinTildes(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
 // Mismo comercio aunque lo escriban distinto ("Delikia Sp" / "DELIKIA SP", "Repsol Waylet" / "REPSOL"): las 4 primeras letras.
 function parecido(a, b) {
   const n = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 4); };
