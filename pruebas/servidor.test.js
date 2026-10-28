@@ -357,4 +357,9 @@ hojas.Gastos.f.push([new Date(hace(8)), 'Sin identificar', 9.99, '', 'Otros', 'B
 pag('n5', hace(9), 'NETFLIX.COM', '9.99'); props.correoHechos = JSON.stringify(JSON.parse(props.correoHechos).concat(['n5']));   // ya leído antes: solo lo ve el repaso
 const nAntes = hojas.Gastos.f.length; const rep = post({ clave: 'k', accion: 'correo.repasar', dias: 5 });
 ok(rep.ok && rep.nombrados >= 1 && hojas.Gastos.f.length === nAntes && post({ clave: 'k', accion: 'leer' }).gastos.find(q => q.id === 'gsi3').comercio === 'Netflix.Com', 'repasar correos: nombra lo que quedó sin identificar y no añade pagos viejos (' + JSON.stringify(rep) + ')');
+correos.push({ id: 'n6', de: DE, t: hace(6), html: '<p>Antonio, te informamos de que se ha realizado un movimiento de 1.423,36 EUR en tu cuenta acabada en 0061. Para m&aacute;s informaci&oacute;n, entra en tu App Santander.</p>' });
+correos.push({ id: 'n7', de: DE, t: hace(5), html: '<p>Antonio, te informamos de que se ha realizado un movimiento de 45,00 EUR en tu cuenta acabada en 0061.</p>' });
+t = post({ clave: 'k', accion: 'leer' });
+const nom = t.gastos.filter(q => q.comercio === 'Nómina'), tra = t.gastos.filter(q => q.comercio === 'Transferencia recibida');
+ok(nom.length === 1 && nom[0].importe === 1423.36 && nom[0].tipo === 'ingreso' && nom[0].cuenta === 'banco-santander' && nom[0].tarjeta === '' && tra.length === 1 && tra[0].importe === 45, 'correo «se ha realizado un movimiento»: la nómina entra sola (y lo pequeño, como transferencia recibida)');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

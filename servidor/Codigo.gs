@@ -57,10 +57,15 @@ const AVISOS = [{
   movimientos: [
     { tipo: 'gasto', patron: /informamos\s+de\s+que\s+(.+?)\s+ha\s+realizado\s+una\s+retenci[oó]n\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+tarjeta\s+terminada\s+en\s+[*\s]*(\d{4})/i, comercio: 1, importe: 2, fin: 3 },
     { tipo: 'gasto', patron: /has\s+pagado\s+([\d.,]+)\s*(?:EUR|€)\s+con\s+tu\s+tarjeta\s+terminada\s+en\s+[*\s]*(\d{4})\s+en\s+(.+?)\.\s+(?:Consulta|Para|Gracias)/i, comercio: 3, importe: 1, fin: 2 },
+    // "te informamos de que se ha realizado un movimiento de 1.423,36 EUR en tu cuenta acabada en 0061." (no dice el signo:
+    // el Santander solo manda este aviso para lo que entra; lo grande se toma por la nómina, que abre el mes)
+    { tipo: 'ingreso', patron: /se\s+ha\s+realizado\s+un\s+movimiento\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+cuenta\s+acabada\s+en\s+[*\s]*(\d{4})/i, importe: 1, fin: 2,
+      nombre: function (importe) { return importe >= NOMINA_MINIMA ? 'Nómina' : 'Transferencia recibida'; } },
     { tipo: 'gasto', recibo: true, patron: /el\s+(\d{4}-\d{2}-\d{2})\s+se\s+cargar[aá]\s+el\s+recibo\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+emitido\s+por\s+(.+?)\s+en\s+tu\s+cuenta\s+terminada\s+en\s+[*\s]*(\d{4})/i, dia: 1, importe: 2, comercio: 3, fin: 4 },
   ],
 }];
 const MOV_APPLE_PAY_MIN = 15;   // un pago con tarjeta que ya llegó por Apple Pay en este margen no se apunta otra vez
+const NOMINA_MINIMA = 500;   // un ingreso avisado por correo desde esta cantidad se toma por la nómina
 const MOV_MISMO_DIAS = 3;      // el mismo pago (mismo importe y comercio parecido) avisado otra vez en estos días: no se repite
 const AVISO_ESPERA_S = 90;   // no se procesa un aviso hasta que tiene esta antigüedad: da tiempo a que llegue el pago de Apple Pay
 const AVISO_MARGEN_S = 60;   // los movimientos apuntados hasta este rato después del aviso se dan por incluidos en su saldo
@@ -691,7 +696,7 @@ function aplicarMovimiento(aviso, m, soloNombrar) {
     if (!hallado) continue;
     const importe = leerImporte(hallado[regla.importe]);
     if (typeof importe !== 'number' || !(importe > 0)) return false;
-    const comercio = bonito(hallado[regla.comercio]).replace(/[\s,.]+$/, ''), fin = hallado[regla.fin], tipo = regla.tipo;
+    const comercio = regla.nombre ? regla.nombre(importe) : bonito(hallado[regla.comercio]).replace(/[\s,.]+$/, ''), fin = hallado[regla.fin], tipo = regla.tipo;
     const cuentas = leerCuentas();
     const c = cuentas.filter(function (x) { return x.tarjetas.some(function (t) { return t.indexOf(fin) > -1; }); })[0] ||
       cuentas.filter(function (x) { return x.terminaEn === fin; })[0] ||
@@ -714,11 +719,11 @@ function aplicarMovimiento(aviso, m, soloNombrar) {
     if (duda) {
       const fila = buscarFila(h, 8, duda.id);
       h.getRange(fila, 2).setValue(texto(comercio));
-      h.getRange(fila, 4, 1, 2).setValues([[texto('Tarjeta **' + fin), categoria]]);
+      h.getRange(fila, 4, 1, 2).setValues([[tipo === 'gasto' ? texto('Tarjeta **' + fin) : '', categoria]]);
       return true;
     }
     if (soloNombrar) return true;
-    h.appendRow([new Date(t), texto(comercio), importe, texto('Tarjeta **' + fin), categoria, ORIGEN_BANCO, '', nuevoId(), c.id, tipo, '']);
+    h.appendRow([new Date(t), texto(comercio), importe, tipo === 'gasto' ? texto('Tarjeta **' + fin) : '', categoria, ORIGEN_BANCO, '', nuevoId(), c.id, tipo, '']);
     return true;
   }
   return false;
