@@ -123,10 +123,12 @@ function doPost(e) {
   try {
     // Un pago de Apple Pay no espera a que acabe otra cosa (p. ej. la app leyendo el correo, que tarda):
     // si el atajo se queda esperando, iOS lo corta y el pago se pierde. Apuntar una fila no necesita el candado.
-    if (accion === 'pago' || accion === 'pagos') candado.tryLock(2000); else candado.waitLock(20000);
+    if (accion === 'pago' || accion === 'pagos' || accion === 'notificacion') candado.tryLock(2000); else candado.waitLock(20000);
     switch (accion) {
       case 'pago': return responder(apuntarPago(datos));
       // Varios pagos de golpe (los que el atajo no pudo enviar antes). Cada uno lleva su id y no se apunta dos veces.
+      // Notificación de una app del banco que manda un atajo de iOS (Trade Republic, Santander, Revolut…).
+      case 'notificacion': return responder(apuntarNotificacion(datos));
       case 'pagos': return responder({ ok: true, pagos: (datos.pagos || []).map(function (p) { return apuntarPago(Object.assign({}, p, { clave: undefined })); }) });
       case 'leer': {
         const correo = sincronizarSinRomper();
@@ -783,6 +785,66 @@ function apuntarTransferencia(c, cuentas, importe, t, soloNombrar, destinoSabido
   h.appendRow([new Date(t), texto(fila[0]), fila[1], fila[2], fila[3], fila[4], fila[5], nuevoId(), fila[6], fila[7], fila[8]]);
   return true;
 }
+/* ------------------------------------------------ notificaciones de las apps del banco */
+// El atajo manda { app, titulo, texto } de cada notificación. Se guarda tal cual en «Notificaciones» (para afinar la
+// lectura) y, si dice un importe y si entra o sale, se apunta en la cuenta de esa app: «Has recibido 50,00 € de Pablo».
+const H_NOTIF = ['Fecha', 'App', 'Título', 'Texto', 'Resultado'];
+const ORIGEN_NOTIF = 'Notificación';
+function importeDeTexto(t) {
+  const m = /(?:([\d.]+,\d{1,2}|\d+(?:\.\d{1,2})?)\s*(?:€|EUR))|(?:(?:€|EUR)\s*([\d.]+,\d{1,2}|\d+(?:\.\d{1,2})?))/i.exec(t);
+  return m ? leerImporte(m[1] || m[2]) : '';
+}
+function leerNotificacion(app, titulo, texto) {
+  const t = (titulo + '. ' + texto).replace(/\s+/g, ' ').trim(), n = sinTildes(t);
+  const importe = importeDeTexto(t);
+  if (!(importe > 0)) return null;
+  let tipo = '';
+  if (/(recibid|has recibido|te ha enviado|te han enviado|ingres|abonad|entrante|intereses|reembolso|devolucion|nomina)/.test(n)) tipo = 'ingreso';
+  else if (/(pagado|has pagado|pago|cargo|has enviado|enviado|retirad|compra|domiciliad|recibo)/.test(n)) tipo = 'gasto';
+  if (!tipo) return null;
+  const quien = /(?:de|a|desde|para)\s+([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñü.'-]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñü.'-]+){0,2})/.exec(t.replace(/^[^.]*\.\s*/, ''));
+  const bizum = /bizum/.test(n), interes = /interes/.test(n);
+  let nombre;
+  if (interes) nombre = 'Intereses';
+  else if (/nomina/.test(n)) nombre = 'Nómina';
+  else if (bizum) nombre = (tipo === 'ingreso' ? 'Bizum de ' : 'Bizum a ') + (quien ? quien[1] : '').trim();
+  else if (quien) nombre = (tipo === 'ingreso' ? 'Transferencia de ' : 'Pago a ') + quien[1].trim();
+  else nombre = tipo === 'ingreso' ? 'Ingreso recibido' : 'Pago';
+  return { importe: importe, tipo: tipo, nombre: nombre.replace(/\s+$/, '').replace(/ (de|a)$/, '') };
+}
+function apuntarNotificacion(datos) {
+  const app = String(datos.app || '').trim(), titulo = String(datos.titulo || '').trim(), texto = String(datos.texto || '').trim();
+  if (!app && !titulo && !texto) return { ok: true, prueba: true, mensaje: 'Conexión correcta.' };
+  const registro = hoja('Notificaciones', H_NOTIF), fila = [new Date(), texto0(app), texto0(titulo), texto0(texto)];
+  const anota = function (r) { registro.appendRow(fila.concat([r])); return r; };
+  const lectura = leerNotificacion(app, titulo, texto);
+  const cuentas = leerCuentas();
+  const a = sinTildes(app).split(/\s+/)[0];
+  const c = a ? cuentas.filter(function (x) { return sinTildes(x.nombre).indexOf(a) > -1 || x.tarjetas.some(function (t) { return sinTildes(t).indexOf(a) > -1; }); })[0] : null;
+  if (!lectura) return { ok: true, apuntado: false, mensaje: anota('sin importe o sin saber si entra o sale') };
+  if (!c) return { ok: true, apuntado: false, mensaje: anota('no sé de qué cuenta es la app «' + app + '»') };
+  const ahora = Date.now(), zona = zonaHoraria(), h = hoja('Gastos', H_GASTOS);
+  const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
+  const gastos = leerGastos();
+  const igual = function (g) { return tipoValido(g.tipo) === lectura.tipo && Math.abs((Number(g.importe) || 0) - lectura.importe) < 0.005; };
+  const deLaCuenta = function (g) { return g.cuenta === c.id || (!g.cuenta && g.tarjeta && c.tarjetas.some(function (t) { return sinTildes(g.tarjeta).indexOf(sinTildes(t)) > -1; })); };
+  // Repetida (la misma notificación dos veces) o ya apuntada por Apple Pay o por un correo del banco: no se repite.
+  if (gastos.some(function (g) { return igual(g) && deLaCuenta(g) && g.comercio !== SIN_IDENTIFICAR && Math.abs(ms(g) - ahora) <= (g.origen === ORIGEN_NOTIF ? 10 : MOV_APPLE_PAY_MIN) * 60000; }))
+    return { ok: true, apuntado: false, mensaje: anota('ya estaba apuntado') };
+  const categoria = lectura.tipo === 'gasto' ? categorizar(lectura.nombre) : '';
+  const duda = gastos.filter(function (g) { return igual(g) && g.cuenta === c.id && g.comercio === SIN_IDENTIFICAR && Math.abs(ms(g) - ahora) <= MOV_MISMO_DIAS * 864e5; })[0];
+  if (duda) {
+    const n = buscarFila(h, 8, duda.id);
+    h.getRange(n, 2).setValue(texto0(lectura.nombre));
+    if (lectura.tipo === 'gasto') h.getRange(n, 5).setValue(categoria);
+    return { ok: true, apuntado: true, id: duda.id, mensaje: anota('nombra «sin identificar»: ' + lectura.nombre) };
+  }
+  const id = nuevoId();
+  h.appendRow([new Date(), texto0(lectura.nombre), lectura.importe, '', categoria, ORIGEN_NOTIF, '', id, c.id, lectura.tipo, '']);
+  return { ok: true, apuntado: true, id: id, nombre: lectura.nombre, importe: lectura.importe, tipo: lectura.tipo, cuenta: c.id, mensaje: anota('apuntado: ' + lectura.tipo + ' ' + lectura.importe + ' ' + lectura.nombre) };
+}
+function texto0(v) { return texto(String(v || '').slice(0, 300)); }
+
 // Mismo comercio aunque lo escriban distinto ("Delikia Sp" / "DELIKIA SP", "Repsol Waylet" / "REPSOL"): las 4 primeras letras.
 function parecido(a, b) {
   const n = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '').slice(0, 4); };

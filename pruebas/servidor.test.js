@@ -376,4 +376,19 @@ trf('x3', hace(2.5), '120,00'); tinm('x4', hace(2), '120.00');     // al revés
 t = post({ clave: 'k', accion: 'leer' });
 const aport = t.gastos.filter(q => q.tipo === 'traspaso' && q.destino === 'mi');
 ok(aport.length === 2 && aport.every(q => q.cuenta === 'banco-santander' && q.comercio === 'Traspaso a MyInvestor') && !t.gastos.some(q => q.comercio === 'Transferencia enviada' && (q.importe === 496.26 || q.importe === 120)), 'aportación a MyInvestor: su correo la convierte en traspaso, llegue antes o después el del Santander (' + JSON.stringify(aport.map(q => q.importe)) + ')');
+// ---------------------------------------------------------------- notificaciones de las apps (atajo de iOS 27)
+const nt = (app, titulo, texto) => post({ clave: 'k', accion: 'notificacion', app, titulo, texto });
+let n1 = nt('Trade Republic', 'Transferencia recibida', 'Has recibido 150,00 € de Pablo García');
+let n2 = nt('Trade Republic', 'Transferencia recibida', 'Has recibido 150,00 € de Pablo García');
+hojas.Gastos.f.push([new Date(hace(60)), 'Sin identificar', 33, '', '', 'Banco', '', 'gsi9', 'banco-santander', 'ingreso', '']);
+let n3 = nt('Santander', 'Bizum recibido', 'Has recibido un Bizum de Ana López de 33,00 € con el concepto cena');
+let n4 = nt('Trade Republic', 'Intereses', 'Has recibido 8,12 € de intereses');
+let n5 = nt('Trade Republic', 'Novedades', 'Descubre los nuevos ETF');
+let n6 = nt('', '', '');
+t = post({ clave: 'k', accion: 'leer' });
+const pab = t.gastos.filter(q => q.cuenta === 'tr' && q.importe === 150);
+ok(n1.apuntado && pab.length === 1 && pab[0].tipo === 'ingreso' && pab[0].comercio === 'Transferencia de Pablo García' && pab[0].origen === 'Notificación' && !n2.apuntado, 'notificación de Trade Republic: el ingreso entra en su cuenta con quién lo manda, y repetida no se duplica (' + JSON.stringify(pab) + ')');
+ok(n3.apuntado && t.gastos.find(q => q.id === 'gsi9').comercio === 'Bizum de Ana López', 'notificación de Bizum del Santander: pone nombre al «sin identificar» del mismo importe (' + n3.mensaje + ')');
+ok(n4.apuntado && t.gastos.some(q => q.cuenta === 'tr' && q.comercio === 'Intereses' && q.importe === 8.12) && !n5.apuntado && n6.prueba, 'notificación: intereses; sin importe no apunta nada; vacía es una prueba');
+ok(hojas.Notificaciones && hojas.Notificaciones.f.length === 6, 'notificación: cada una queda guardada tal cual en «Notificaciones»');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);
