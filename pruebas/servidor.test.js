@@ -391,4 +391,13 @@ ok(n1.apuntado && pab.length === 1 && pab[0].tipo === 'ingreso' && pab[0].comerc
 ok(n3.apuntado && t.gastos.find(q => q.id === 'gsi9').comercio === 'Bizum de Ana López', 'notificación de Bizum del Santander: pone nombre al «sin identificar» del mismo importe (' + n3.mensaje + ')');
 ok(n4.apuntado && t.gastos.some(q => q.cuenta === 'tr' && q.comercio === 'Intereses' && q.importe === 8.12) && !n5.apuntado && n6.prueba, 'notificación: intereses; sin importe no apunta nada; vacía es una prueba');
 ok(hojas.Notificaciones && hojas.Notificaciones.f.length === 6, 'notificación: cada una queda guardada tal cual en «Notificaciones»');
+// transferencia del Santander a Trade Republic: el correo no dice a dónde va, la notificación de TR sí que entra
+trf('y1', hace(3), '300,00');                     // primero el correo del Santander
+t = post({ clave: 'k', accion: 'leer' });
+let y1 = nt('Trade Republic', 'Ingreso', 'Has recibido 300,00 € de Antonio Fernandez Bonilla');
+let y2 = nt('Trade Republic', 'Ingreso', 'Has recibido 77,00 € de Antonio Fernandez Bonilla');   // primero la notificación
+trf('y3', hace(2), '77,00');
+t = post({ clave: 'k', accion: 'leer' });
+const tr3 = t.gastos.filter(q => q.tipo === 'traspaso' && q.destino === 'tr' && q.cuenta === 'banco-santander' && (q.importe === 300 || q.importe === 77));
+ok(tr3.length === 2 && tr3.map(q => q.importe).sort().join() === '300,77' && !t.gastos.some(q => (q.importe === 300 || q.importe === 77) && q.tipo !== 'traspaso'), 'transferencia a Trade Republic: el correo del Santander y la notificación de TR se juntan en un traspaso, en cualquier orden (' + JSON.stringify(tr3.map(q => [q.importe, q.comercio])) + ')');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);

@@ -774,6 +774,20 @@ function apuntarTransferencia(c, cuentas, importe, t, soloNombrar, destinoSabido
   const fila = destino
     ? ['Traspaso a ' + destino.nombre, importe, '', '', ORIGEN_BANCO, '', c.id, 'traspaso', destino.id]
     : ['Transferencia enviada', importe, '', CATEGORIA_POR_DEFECTO, ORIGEN_BANCO, '', c.id, 'gasto', ''];
+  if (!destino) {
+    // Si ese mismo importe acaba de entrar en otra cuenta tuya (avisado por su notificación), es un traspaso a ella.
+    const entrada = gastos.filter(function (g) {
+      return tipoValido(g.tipo) === 'ingreso' && g.origen === ORIGEN_NOTIF && g.cuenta && g.cuenta !== c.id &&
+        Math.abs((Number(g.importe) || 0) - importe) < 0.005 && Math.abs(ms(g) - t) <= 864e5;
+    })[0];
+    if (entrada) {
+      const otra = cuentas.filter(function (x) { return x.id === entrada.cuenta; })[0];
+      const n = buscarFila(h, 8, entrada.id);
+      h.getRange(n, 2, 1, 5).setValues([[texto('Traspaso a ' + (otra ? otra.nombre : entrada.cuenta)), importe, '', '', ORIGEN_BANCO]]);
+      h.getRange(n, 9, 1, 3).setValues([[c.id, 'traspaso', entrada.cuenta]]);
+      return true;
+    }
+  }
   const duda = gastos.filter(function (g) { return cerca(g) && g.comercio === SIN_IDENTIFICAR && tipoValido(g.tipo) === 'gasto'; })[0];
   if (duda) {
     const n = buscarFila(h, 8, duda.id);
@@ -831,6 +845,20 @@ function apuntarNotificacion(datos) {
   // Repetida (la misma notificación dos veces) o ya apuntada por Apple Pay o por un correo del banco: no se repite.
   if (gastos.some(function (g) { return igual(g) && deLaCuenta(g) && g.comercio !== SIN_IDENTIFICAR && Math.abs(ms(g) - ahora) <= (g.origen === ORIGEN_NOTIF ? 10 : MOV_APPLE_PAY_MIN) * 60000; }))
     return { ok: true, apuntado: false, mensaje: anota('ya estaba apuntado') };
+  // Dinero que entra y que salió de otra cuenta tuya (el correo del Santander no dice a dónde va): es un traspaso.
+  if (lectura.tipo === 'ingreso') {
+    const salida = gastos.filter(function (g) {
+      return tipoValido(g.tipo) === 'gasto' && g.cuenta && g.cuenta !== c.id && Math.abs((Number(g.importe) || 0) - lectura.importe) < 0.005 &&
+        (g.comercio === 'Transferencia enviada' || g.comercio === SIN_IDENTIFICAR) && Math.abs(ms(g) - ahora) <= 864e5;
+    })[0];
+    if (salida) {
+      const n = buscarFila(h, 8, salida.id);
+      h.getRange(n, 2).setValue(texto0('Traspaso a ' + c.nombre));
+      h.getRange(n, 5).setValue('');
+      h.getRange(n, 10, 1, 2).setValues([['traspaso', c.id]]);
+      return { ok: true, apuntado: true, id: salida.id, mensaje: anota('traspaso desde otra cuenta tuya: ' + lectura.importe) };
+    }
+  }
   const categoria = lectura.tipo === 'gasto' ? categorizar(lectura.nombre) : '';
   const duda = gastos.filter(function (g) { return igual(g) && g.cuenta === c.id && g.comercio === SIN_IDENTIFICAR && Math.abs(ms(g) - ahora) <= MOV_MISMO_DIAS * 864e5; })[0];
   if (duda) {
