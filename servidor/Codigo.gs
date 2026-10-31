@@ -59,6 +59,9 @@ const AVISOS = [{
     { tipo: 'gasto', patron: /has\s+pagado\s+([\d.,]+)\s*(?:EUR|€)\s+con\s+tu\s+tarjeta\s+terminada\s+en\s+[*\s]*(\d{4})\s+en\s+(.+?)\.\s+(?:Consulta|Para|Gracias)/i, comercio: 3, importe: 1, fin: 2 },
     // "te informamos de que se ha realizado un movimiento de 1.423,36 EUR en tu cuenta acabada en 0061." (no dice el signo:
     // el Santander solo manda este aviso para lo que entra; lo grande se toma por la nómina, que abre el mes)
+    // Con signo menos es un cargo ("movimiento de -25,05 EUR"): casi siempre ya llegó por otro lado (tarjeta, Apple Pay).
+    { tipo: 'gasto', cargo: true, patron: /se\s+ha\s+realizado\s+un\s+movimiento\s+de\s+-\s*([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+cuenta\s+acabada\s+en\s+[*\s]*(\d{4})/i, importe: 1, fin: 2,
+      nombre: function () { return 'Cargo en cuenta'; } },
     { tipo: 'ingreso', patron: /se\s+ha\s+realizado\s+un\s+movimiento\s+de\s+([\d.,]+)\s*(?:EUR|€)\s+en\s+tu\s+cuenta\s+acabada\s+en\s+[*\s]*(\d{4})/i, importe: 1, fin: 2,
       nombre: function (importe) { return importe >= NOMINA_MINIMA ? 'Nómina' : 'Transferencia recibida'; } },
     // "te confirmamos que tu transferencia de 250,00 EUR desde la cuenta acabada en 0061 se ha enviado correctamente."
@@ -733,6 +736,7 @@ function aplicarMovimiento(aviso, m, soloNombrar) {
     const yaEsta = gastos.some(function (g) {
       if (!igual(g) || g.comercio === SIN_IDENTIFICAR) return false;
       const d = Math.abs(ms(g) - t);
+      if (regla.cargo) return d <= 864e5 && (g.cuenta === c.id || (!g.cuenta && g.tarjeta && c.tarjetas.some(function (x) { return sinTildes(g.tarjeta).indexOf(sinTildes(x)) > -1; })));
       return (g.origen === 'Apple Pay' && d <= MOV_APPLE_PAY_MIN * 60000) || (d <= MOV_MISMO_DIAS * 864e5 && parecido(g.comercio, comercio));
     });
     if (yaEsta) return true;

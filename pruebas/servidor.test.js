@@ -400,4 +400,8 @@ trf('y3', hace(2), '77,00');
 t = post({ clave: 'k', accion: 'leer' });
 const tr3 = t.gastos.filter(q => q.tipo === 'traspaso' && q.destino === 'tr' && q.cuenta === 'banco-santander' && (q.importe === 300 || q.importe === 77));
 ok(tr3.length === 2 && tr3.map(q => q.importe).sort().join() === '300,77' && !t.gastos.some(q => (q.importe === 300 || q.importe === 77) && q.tipo !== 'traspaso'), 'transferencia a Trade Republic: el correo del Santander y la notificación de TR se juntan en un traspaso, en cualquier orden (' + JSON.stringify(tr3.map(q => [q.importe, q.comercio])) + ')');
+const movc = (id, t, imp) => correos.push({ id, de: DE, t, html: '<p>Antonio, te informamos de que se ha realizado un movimiento de ' + imp + ' EUR en tu cuenta acabada en 0061.</p>' });
+pag('z1', hace(4), 'TULOTERO', '5.00'); movc('z2', hace(3), '-5,00'); movc('z3', hace(3), '-25,05');
+t = post({ clave: 'k', accion: 'leer' });
+ok(t.gastos.filter(q => q.importe === 5 && q.tipo === 'gasto' && /tulotero|cargo/i.test(q.comercio)).length === 1 && t.gastos.filter(q => q.comercio === 'Cargo en cuenta' && q.importe === 25.05).length === 1 && !t.gastos.some(q => q.tipo === 'ingreso' && (q.importe === 5 || q.importe === 25.05)), 'movimiento con signo menos: es un cargo; si ya llegó por la tarjeta no se repite, y nunca se toma por ingreso');
 console.log(fallos ? fallos + ' FALLOS' : 'TODO OK'); process.exit(fallos ? 1 : 0);
