@@ -376,6 +376,14 @@ trf('x3', hace(2.5), '120,00'); tinm('x4', hace(2), '120.00');     // al revés
 t = post({ clave: 'k', accion: 'leer' });
 const aport = t.gastos.filter(q => q.tipo === 'traspaso' && q.destino === 'mi');
 ok(aport.length === 2 && aport.every(q => q.cuenta === 'banco-santander' && q.comercio === 'Traspaso a MyInvestor') && !t.gastos.some(q => q.comercio === 'Transferencia enviada' && (q.importe === 496.26 || q.importe === 120)), 'aportación a MyInvestor: su correo la convierte en traspaso, llegue antes o después el del Santander (' + JSON.stringify(aport.map(q => q.importe)) + ')');
+// Sin cuenta conjunta en la app: la transferencia del importe de Comida es un gasto en Comida, y la tarjeta Revolut no apunta.
+post({ clave: 'k', accion: 'cuenta.borrar', id: 'conj' });
+post({ clave: 'k', accion: 'presupuesto.guardar', presupuesto: { id: 'comida', nombre: 'Comida', limite: 260, orden: 2 } });
+trf('c1', hace(1.5), '260,00');
+const rev = post({ clave: 'k', accion: 'pago', comercio: 'Mercadona', importe: '30,00', tarjeta: 'Revolut' });
+t = post({ clave: 'k', accion: 'leer' });
+const com = t.gastos.filter(q => q.importe === 260);
+ok(com.length === 1 && com[0].tipo === 'gasto' && com[0].categoria === 'Comida' && com[0].comercio === 'Cuenta conjunta (comida)' && rev.ignorado && !t.gastos.some(q => q.comercio === 'Mercadona' && q.importe === 30), 'sin cuenta conjunta: la transferencia de comida es gasto en Comida y los pagos con Revolut no se apuntan');
 // ---------------------------------------------------------------- notificaciones de las apps (atajo de iOS 27)
 const nt = (app, titulo, texto) => post({ clave: 'k', accion: 'notificacion', app, titulo, texto });
 let n1 = nt('Trade Republic', 'Transferencia recibida', 'Has recibido 150,00 € de Pablo García');

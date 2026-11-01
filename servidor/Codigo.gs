@@ -107,6 +107,8 @@ const CATEGORIAS = [
   ['Ocio', [' cine', 'cines', 'spotify', 'netflix', 'hbo', 'disney', 'steam', 'playstation', 'ticketmaster', 'loter', 'discoteca']],
 ];
 const CATEGORIA_POR_DEFECTO = 'Otros';
+const TARJETAS_FUERA = /revolut/i;                 // tarjetas cuyos pagos no se apuntan (la de la cuenta conjunta)
+const COMIDA_CONJUNTA = 'Cuenta conjunta (comida)'; // la transferencia fija a la conjunta, apuntada como gasto en Comida
 
 /* ------------------------------------------------------------------ entrada */
 
@@ -176,6 +178,10 @@ function apuntarPago(datos) {
   // Sin comercio ni importe es una prueba de conexión (ejecutar el atajo a mano): se contesta sin apuntar nada.
   if (!comercio && !(importe > 0)) {
     return { ok: true, prueba: true, mensaje: 'Conexión correcta. No se ha apuntado nada porque no venía ni comercio ni importe.' };
+  }
+  // La tarjeta de la cuenta conjunta (Revolut) no es gasto tuyo: tu gasto en comida es la transferencia que le haces.
+  if (TARJETAS_FUERA.test(String(datos.tarjeta || ''))) {
+    return { ok: true, ignorado: true, mensaje: 'Pago con la tarjeta de la cuenta conjunta: no se apunta (ya cuenta la transferencia de comida).' };
   }
   const h = hoja('Gastos', H_GASTOS);
   // Con id propio (lo pone el atajo), el mismo pago enviado dos veces se apunta una sola.
@@ -760,6 +766,9 @@ function apuntarTransferencia(c, cuentas, importe, t, soloNombrar, destinoSabido
   const conjunta = cuentas.filter(function (x) { return x.rol === 'conjunta'; })[0];
   const pres = leerPresupuestos().filter(function (p) { return sinTildes(p.nombre) === 'cuenta conjunta'; })[0];
   const destino = destinoSabido || (conjunta && pres && Math.abs(pres.limite - importe) < 0.005 ? conjunta : null);
+  // Sin cuenta conjunta en la app: lo que pones cada mes para comida (el presupuesto de Comida) es un gasto en Comida.
+  const presComida = leerPresupuestos().filter(function (p) { return sinTildes(p.nombre) === 'comida'; })[0];
+  const comida = !destino && !conjunta && presComida && Math.abs(presComida.limite - importe) < 0.005;
   const zona = zonaHoraria(), h = hoja('Gastos', H_GASTOS), h0 = function () { return h; };
   const ms = function (g) { return Utilities.parseDate(conSegundos(g.fecha), zona, F_FECHA).getTime(); };
   const gastos = leerGastos();
@@ -772,13 +781,19 @@ function apuntarTransferencia(c, cuentas, importe, t, soloNombrar, destinoSabido
       h0().getRange(n, 2).setValue(texto('Traspaso a ' + destino.nombre));
       h0().getRange(n, 5).setValue('');
       h0().getRange(n, 10, 1, 2).setValues([['traspaso', destino.id]]);
+    } else if (comida && previa.comercio === 'Transferencia enviada') {
+      const n = buscarFila(h0(), 8, previa.id);
+      h0().getRange(n, 2).setValue(texto(COMIDA_CONJUNTA));
+      h0().getRange(n, 5).setValue('Comida');
     }
     return true;
   }
   const fila = destino
     ? ['Traspaso a ' + destino.nombre, importe, '', '', ORIGEN_BANCO, '', c.id, 'traspaso', destino.id]
-    : ['Transferencia enviada', importe, '', CATEGORIA_POR_DEFECTO, ORIGEN_BANCO, '', c.id, 'gasto', ''];
-  if (!destino) {
+    : comida
+      ? [COMIDA_CONJUNTA, importe, '', 'Comida', ORIGEN_BANCO, '', c.id, 'gasto', '']
+      : ['Transferencia enviada', importe, '', CATEGORIA_POR_DEFECTO, ORIGEN_BANCO, '', c.id, 'gasto', ''];
+  if (!destino && !comida) {
     // Si ese mismo importe acaba de entrar en otra cuenta tuya (avisado por su notificación), es un traspaso a ella.
     const entrada = gastos.filter(function (g) {
       return tipoValido(g.tipo) === 'ingreso' && g.origen === ORIGEN_NOTIF && g.cuenta && g.cuenta !== c.id &&
